@@ -23,8 +23,13 @@ This repo is set up as a static site from the repository root:
 - `.nojekyll` keeps GitHub from running Jekyll
 - `.github/workflows/pages.yml` deploys Pages from `main`
 
-If Pages is not live yet, enable it in the repo settings:
+GitHub’s API and Actions tokens on this repo cannot create the Pages site (`403 Resource not accessible by integration`). Enable it once in the GitHub UI:
 
-1. Settings → Pages
-2. Source: GitHub Actions, or Deploy from a branch (`main` / root)
-3. Make the repository public if the account does not include private Pages
+1. Make the repository **public** (private Pages needs a paid plan)
+2. Settings → Pages → Build and deployment
+3. Source: **GitHub Actions**
+4. Re-run the **Deploy GitHub Pages** workflow, or push any commit on `main`
+
+The live URL is:
+
+**https://jfeldman9-rgb.github.io/LegendofBDB/**
