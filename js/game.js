@@ -159,7 +159,7 @@ export class Game {
     elonCtx.imageSmoothingEnabled = true;
     // painted after assets load via _paintElon()
 
-    $("#btn-start").onclick = () => this.startChapter(1);
+    $("#btn-start").onclick = () => this.startFromTitle();
     $("#btn-how").onclick = () => this.showMenu("how");
     $("#btn-chapters").onclick = () => this.showMenu("chapters");
     $("#btn-protein").onclick = () => this.showMenu("protein");
@@ -212,6 +212,7 @@ export class Game {
     hold($("#ctrl-dash"), "dash");
 
     this.showMenu("main");
+    this._bindCine();
   }
 
   _bindInput() {
@@ -227,7 +228,8 @@ export class Game {
         if (this.mode === "title" && this.menu !== "main") this.showMenu("main");
         else this.togglePause();
       }
-      if (k === "enter" && this.mode === "title") this.startChapter(1);
+      if (k === "enter" && this.mode === "title") this.startFromTitle();
+      if ((k === "enter" || k === " " || k === "escape") && this.mode === "cine") this._endCine();
       this.audio.unlock();
     });
     window.addEventListener("keyup", (e) => {
@@ -304,6 +306,67 @@ export class Game {
     });
   }
 
+  _bindCine() {
+    const skipOpen = this.root.querySelector("#cine-open-skip");
+    const skipClose = this.root.querySelector("#cine-close-skip");
+    if (skipOpen) skipOpen.onclick = () => this._endCine();
+    if (skipClose) skipClose.onclick = () => this._endCine();
+  }
+
+  startFromTitle() {
+    this.audio.unlock();
+    this.playCine("open", () => this.startChapter(1));
+  }
+
+  playCine(kind, onDone) {
+    const wrap = this.root.querySelector(kind === "open" ? "#cine-open" : "#cine-close");
+    const vid = this.root.querySelector(kind === "open" ? "#vid-open" : "#vid-close");
+    if (!wrap || !vid) {
+      onDone();
+      return;
+    }
+    this._cineDone = onDone;
+    this.mode = "cine";
+    this.ui.menu.classList.remove("show");
+    this.closeModal();
+    if (this.audio.stopMusic) this.audio.stopMusic();
+    wrap.hidden = false;
+    wrap.classList.add("show");
+    const finish = () => this._endCine();
+    vid.onended = finish;
+    try {
+      vid.currentTime = 0;
+    } catch {}
+    const play = vid.play();
+    if (play && play.catch) {
+      play.catch(() => {
+        // autoplay blocked — wait for skip or another tap
+      });
+    }
+  }
+
+  _endCine() {
+    const open = this.root.querySelector("#cine-open");
+    const close = this.root.querySelector("#cine-close");
+    const vOpen = this.root.querySelector("#vid-open");
+    const vClose = this.root.querySelector("#vid-close");
+    [vOpen, vClose].forEach((v) => {
+      if (!v) return;
+      v.onended = null;
+      try {
+        v.pause();
+      } catch {}
+    });
+    [open, close].forEach((el) => {
+      if (!el) return;
+      el.classList.remove("show");
+      el.hidden = true;
+    });
+    const done = this._cineDone;
+    this._cineDone = null;
+    if (done) done();
+  }
+
   startChapter(n) {
     this.audio.unlock();
     this.audio.startMusic();
@@ -356,6 +419,7 @@ export class Game {
   }
 
   togglePause() {
+    if (this.mode === "cine") return;
     if (this.mode === "playing") {
       this.mode = "paused";
       this.openModal(
@@ -945,21 +1009,24 @@ export class Game {
   }
 
   victory() {
-    if (this.mode === "win") return;
+    if (this.mode === "win" || this.mode === "cine") return;
     this.mode = "win";
     this.save.unlocked = 3;
     this.save.whey += 3;
     this.save.best = Math.max(this.save.best, this.score);
     writeSave(this.save);
-    this.audio.win();
-    this.openModal(
-      "CLAUDIA RESCUED",
-      `CLAUDIA: Is that what I think it is?\nBDB: Legally, it's produce.\nCLAUDIA: Let's leave before they reform.\n\nYettis toasted: ${this.kills}\nShakes chugged: ${this.shakesGot}\nScore: ${this.score}`,
-      [
-        ["RESCUE HER AGAIN", () => this.startChapter(1)],
-        ["TITLE", () => this.toTitle()],
-      ]
-    );
+    this.playCine("close", () => {
+      this.mode = "win";
+      this.audio.win();
+      this.openModal(
+        "CLAUDIA RESCUED",
+        `CLAUDIA: Is that what I think it is?\nBDB: Legally, it's produce.\nCLAUDIA: Let's leave before they reform.\n\nYettis toasted: ${this.kills}\nShakes chugged: ${this.shakesGot}\nScore: ${this.score}`,
+        [
+          ["RESCUE HER AGAIN", () => this.startChapter(1)],
+          ["TITLE", () => this.toTitle()],
+        ]
+      );
+    });
   }
 
   burst(x, y, color, n) {
