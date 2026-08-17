@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>HD Claudia — Legend of BDB</title>
+<title>The Legend of Claudia</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#14081c">
-<meta name="description" content="HD Claudia: a high-definition browser adventure from The Legend of BDB.">
+<meta name="description" content="The Legend of Claudia — a high-definition browser adventure.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect fill='%2314081c' width='64' height='64' rx='12'/><text x='32' y='44' text-anchor='middle' font-size='36'>✦</text></svg>">
 <style>
   :root {
@@ -147,14 +147,14 @@
 <button id="actBtn" type="button">DASH</button>
 
 <div id="overlay">
-  <div class="kicker">The Legend of BDB</div>
+  <div class="kicker">The Legend of Claudia</div>
   <h1>HD <span>Claudia</span></h1>
   <p class="blurb">
     Night is falling over the vale. Claudia carries the last warm lantern
     and five scattered memory stars. Collect them, slip past the shadow wisps,
-    and open the BDB gate before the light goes out.
+    and open the gate before the light goes out.
   </p>
-  <button class="play" id="startBtn" type="button">Begin the Walk</button>
+  <button class="play" id="startBtn" type="button">START RESCUE</button>
   <div class="keys">Desktop: WASD + mouse · Phone: joystick + dash</div>
 </div>
 
@@ -480,10 +480,10 @@ document.getElementById('actBtn').addEventListener('click', () => { dashT = 0.28
 function finish(win) {
   ended = true;
   document.getElementById('end').style.display = 'flex';
-  document.getElementById('endKicker').textContent = win ? 'Legend of BDB' : 'The lantern dims';
+  document.getElementById('endKicker').textContent = win ? 'The Legend of Claudia' : 'The lantern dims';
   document.getElementById('endTitle').textContent = win ? 'The gate opens' : 'Not this night';
   document.getElementById('endBlurb').textContent = win
-    ? 'Claudia sets the five stars into the arch. Gold light floods the vale, and the BDB gate remembers her name.'
+    ? 'Claudia sets the five stars into the arch. Gold light floods the vale, and the gate remembers her name.'
     : 'Shadow wisps close in. Claudia steadies the lantern. The vale will wait for another walk.';
   beep(win ? 660 : 140, 0.35, win ? 'triangle' : 'sawtooth', 0.05);
 }
