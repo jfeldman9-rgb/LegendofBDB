@@ -1,616 +1,157 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<title>The Legend of Claudia</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#14081c">
-<meta name="description" content="The Legend of Claudia — a high-definition browser adventure.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect fill='%2314081c' width='64' height='64' rx='12'/><text x='32' y='44' text-anchor='middle' font-size='36'>✦</text></svg>">
-<style>
-  :root {
-    --ink: #f4e9ff;
-    --muted: #c9b6e6;
-    --gold: #ffd56a;
-    --rose: #ff8ec8;
-    --deep: #14081c;
-  }
-  html, body {
-    margin: 0;
-    height: 100%;
-    overflow: hidden;
-    background: var(--deep);
-    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
-    color: var(--ink);
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
-  }
-  canvas { display: block; width: 100%; height: 100%; }
-  .hud {
-    position: fixed;
-    z-index: 5;
-    pointer-events: none;
-    text-shadow: 0 2px 10px rgba(0,0,0,.75);
-  }
-  #hearts { top: 16px; left: 18px; font-size: 26px; letter-spacing: 3px; }
-  #stars { top: 50px; left: 20px; font-size: 15px; color: var(--gold); }
-  #region {
-    top: 16px; left: 50%; transform: translateX(-50%);
-    font-size: 13px; letter-spacing: 4px; text-transform: uppercase;
-    color: #e8d7ff; opacity: .85;
-  }
-  #objective {
-    top: 16px; right: 16px; max-width: 280px; text-align: right;
-    font-size: 13px; line-height: 1.45; color: #ffe7b0;
-    background: rgba(12, 6, 20, .48);
-    border: 1px solid rgba(255, 213, 106, .22);
-    border-radius: 12px; padding: 10px 12px;
-    backdrop-filter: blur(8px);
-  }
-  #objective b { color: #fff; }
-  #msg, #submsg {
-    left: 50%; transform: translateX(-50%); text-align: center; width: 90%;
-    opacity: 0; transition: opacity .35s;
-  }
-  #msg { top: 28%; font-size: 40px; font-weight: 800; letter-spacing: 1px; }
-  #submsg { top: calc(28% + 54px); font-size: 16px; color: #d9c8f3; }
-  #controls {
-    bottom: 16px; left: 18px; font-size: 12px; color: #b8a4d4; line-height: 1.7;
-  }
-  #overlay, #end {
-    position: fixed; inset: 0; z-index: 12;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse at 50% 30%, #3a1848 0%, #0c0614 72%);
-    transition: opacity .6s;
-  }
-  #end { display: none; }
-  h1 {
-    margin: 0 0 8px;
-    font-size: clamp(34px, 7vw, 58px);
-    letter-spacing: 1px;
-    text-align: center;
-  }
-  h1 span { color: var(--rose); }
-  .kicker {
-    color: var(--gold);
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    font-size: 12px;
-    margin-bottom: 10px;
-  }
-  .blurb {
-    max-width: 560px;
-    margin: 8px 24px 0;
-    text-align: center;
-    color: var(--muted);
-    line-height: 1.65;
-    font-size: 16px;
-  }
-  button.play {
-    margin-top: 26px;
-    padding: 14px 48px;
-    border: 0;
-    border-radius: 40px;
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    color: #2a1020;
-    background: linear-gradient(135deg, #ffe08a, #ff8ec8);
-    box-shadow: 0 8px 28px rgba(255, 142, 200, .35);
-    cursor: pointer;
-    pointer-events: auto;
-  }
-  button.play:hover { filter: brightness(1.08); }
-  .keys { margin-top: 16px; color: #8e7aa8; font-size: 13px; }
-  #joyWrap {
-    position: fixed; left: 18px; bottom: 18px; width: 120px; height: 120px;
-    z-index: 8; display: none; pointer-events: auto;
-  }
-  #joyBase, #joyKnob {
-    position: absolute; border-radius: 50%;
-  }
-  #joyBase {
-    inset: 0;
-    background: rgba(255,255,255,.08);
-    border: 2px solid rgba(255,255,255,.18);
-  }
-  #joyKnob {
-    width: 52px; height: 52px; left: 34px; top: 34px;
-    background: rgba(255, 213, 106, .85);
-    box-shadow: 0 0 16px rgba(255, 213, 106, .45);
-  }
-  #actBtn {
-    position: fixed; right: 22px; bottom: 28px; z-index: 8;
-    width: 74px; height: 74px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.25);
-    background: rgba(255, 142, 200, .82);
-    color: #2a1020; font-weight: 800; letter-spacing: 1px;
-    display: none; pointer-events: auto;
-  }
-  @media (pointer: coarse) {
-    #joyWrap, #actBtn { display: block; }
-    #controls { display: none; }
-  }
-</style>
-</head>
-<body>
-<canvas id="c"></canvas>
-<div class="hud" id="hearts"></div>
-<div class="hud" id="stars"></div>
-<div class="hud" id="region">Duskwind Vale</div>
-<div class="hud" id="objective"><b>Goal:</b> gather 5 memory stars<br>then open the BDB gate</div>
-<div class="hud" id="msg"></div>
-<div class="hud" id="submsg"></div>
-<div class="hud" id="controls">WASD move · mouse / Q E camera · SPACE dash · M mute</div>
-<div id="joyWrap"><div id="joyBase"></div><div id="joyKnob"></div></div>
-<button id="actBtn" type="button">DASH</button>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#07090f" />
+    <meta
+      name="description"
+      content="The Legend of Claudia: BDB's Awakening — side-scrolling shooter. Eggplants. Protein. Poor judgment."
+    />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <title>The Legend of Claudia: BDB's Awakening</title>
+    <link rel="stylesheet" href="css/game.css" />
+  </head>
+  <body>
+    <div class="portrait-blocker" aria-hidden="true">
+      <strong>ROTATE YOUR PHONE</strong>
+      <span>BDB rescues princesses in landscape only.</span>
+    </div>
 
-<div id="overlay">
-  <div class="kicker">The Legend of Claudia</div>
-  <h1>HD <span>Claudia</span></h1>
-  <p class="blurb">
-    Night is falling over the vale. Claudia carries the last warm lantern
-    and five scattered memory stars. Collect them, slip past the shadow wisps,
-    and open the gate before the light goes out.
-  </p>
-  <button class="play" id="startBtn" type="button">START RESCUE</button>
-  <div class="keys">Desktop: WASD + mouse · Phone: joystick + dash</div>
-</div>
+    <div id="app">
+      <div class="stage" id="stage">
+        <canvas id="game" width="960" height="540" aria-label="The Legend of Claudia game"></canvas>
 
-<div id="end">
-  <div class="kicker" id="endKicker">Complete</div>
-  <h1 id="endTitle">The gate opens</h1>
-  <p class="blurb" id="endBlurb"></p>
-  <button class="play" id="againBtn" type="button">Walk again</button>
-</div>
+        <div class="overlay">
+          <div class="hud" id="hud">
+            <div class="hud-panel">
+              <div><b>BDB</b> · <span id="chapter-label">CH I</span></div>
+              <div class="hearts" id="hearts" aria-label="hearts"></div>
+              <div class="protein-track" id="protein" title="Protein toward Papacito"></div>
+              <div class="papi-charges" id="charges" title="Papacito charges"></div>
+            </div>
+            <div class="hud-panel center">
+              <b id="zone-name">BOULEVARD OF BAD DECISIONS</b>
+              <div>SCORE <span id="score">000000</span></div>
+            </div>
+            <div class="hud-panel" style="opacity: 0; pointer-events: none; min-width: 80px"></div>
+          </div>
+        </div>
 
-<script type="importmap">
-{"imports":{
-  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-}}
-</script>
-<script type="module">
-import * as THREE from 'three';
-import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
-import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
-import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+        <div class="utility">
+          <button id="btn-pause" aria-label="Pause">Ⅱ</button>
+          <button id="btn-music" aria-label="Toggle music">♫</button>
+          <button id="btn-sfx" aria-label="Toggle SFX">FX</button>
+        </div>
 
-const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+        <div class="toast" id="toast"></div>
+        <div class="banner" id="banner">
+          <div class="eyebrow">NOW ENTERING</div>
+          <h2 id="banner-title"></h2>
+        </div>
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x14081c);
-scene.fog = new THREE.FogExp2(0x1a0c24, 0.018);
+        <div class="papacito-flash" id="papacito-flash">
+          <div class="card">
+            <canvas id="elon-canvas" width="220" height="200"></canvas>
+            <h3>PAPACITO</h3>
+            <p>ALL VISIBLE YETTIS: TOASTED.</p>
+          </div>
+        </div>
 
-const camera = new THREE.PerspectiveCamera(56, innerWidth / innerHeight, 0.1, 280);
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.62, 0.55, 0.78);
-composer.addPass(bloom);
+        <div class="menu-screen show" id="menu">
+          <div class="menu-card">
+            <div data-panel="main">
+              <div class="sub">THE LEGEND OF</div>
+              <h1>CLAUDIA</h1>
+              <div class="sub">BDB'S AWAKENING</div>
+              <div class="tag">PROTEIN. PRODUCE. POOR JUDGMENT.</div>
+              <div class="btn-row">
+                <button class="primary" id="btn-start">START RESCUE</button>
+              </div>
+              <div class="btn-row" style="margin-top: 8px">
+                <button class="ghost" id="btn-how">HOW TO PLAY</button>
+                <button class="ghost" id="btn-chapters">CHAPTERS</button>
+                <button class="ghost" id="btn-protein">PROTEIN TREE</button>
+              </div>
+              <div class="btn-row" style="margin-top: 10px">
+                <label class="ghost" id="suno-label" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid rgba(180,107,232,.55);cursor:pointer">
+                  ♪ UPLOAD SUNO TRACK
+                  <input id="suno-upload" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" hidden />
+                </label>
+              </div>
+              <p class="foot-note">Headphones encouraged · Poor judgment mandatory · HD cinematic build</p>
+            </div>
 
-scene.add(new THREE.HemisphereLight(0xffc6a8, 0x1a1430, 0.72));
-const sun = new THREE.DirectionalLight(0xffd4a8, 1.15);
-sun.position.set(-18, 28, 12);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -50;
-sun.shadow.camera.right = 50;
-sun.shadow.camera.top = 50;
-sun.shadow.camera.bottom = -50;
-scene.add(sun);
-const rim = new THREE.PointLight(0x88aaff, 18, 80, 2);
-rim.position.set(16, 10, -22);
-scene.add(rim);
+            <div data-panel="how" hidden>
+              <div class="tag">TACTICAL PRODUCE MANUAL</div>
+              <h1 style="font-size: 28px">How to wake BDB</h1>
+              <div class="how-grid">
+                <div><b>MOVE</b><span>A / D or arrows · touch pad</span></div>
+                <div><b>JUMP</b><span>Space / W · variable height</span></div>
+                <div><b>EGGPLANT CANNON</b><span>J or FIRE · tap rapid · hold 0.35s charge</span></div>
+                <div><b>AIR DASH</b><span>Shift or DASH</span></div>
+                <div><b>PROTEIN</b><span>Every 3 shakes = 1 Papacito charge</span></div>
+                <div><b>PAPACITO</b><span>K or PAPI · incinerates on-screen yettis · Elon laughs</span></div>
+              </div>
+              <p class="foot-note">Goal: blast through winged yettis yelling “Turn Back Papi!” and free black-haired Princess Claudia.</p>
+              <div class="btn-row" style="position:sticky;bottom:0;padding-top:8px;background:rgba(8,10,18,.95)">
+                <button class="primary" data-back>BACK</button>
+              </div>
+            </div>
 
-const WORLD = 92;
-function heightAt(x, z) {
-  return Math.sin(x * 0.09) * 1.15 + Math.cos(z * 0.07) * 0.9 + Math.sin((x + z) * 0.045) * 0.55;
-}
+            <div data-panel="chapters" hidden>
+              <div class="tag">CHAPTER SELECT</div>
+              <h1 style="font-size: 28px">Resume the chaos</h1>
+              <div class="chapter-list" id="chapter-list"></div>
+              <div class="btn-row"><button class="primary" data-back>BACK</button></div>
+            </div>
 
-const groundGeo = new THREE.PlaneGeometry(WORLD, WORLD, 90, 90);
-groundGeo.rotateX(-Math.PI / 2);
-const pos = groundGeo.attributes.position;
-const colors = [];
-for (let i = 0; i < pos.count; i++) {
-  const x = pos.getX(i);
-  const z = pos.getZ(i);
-  const y = heightAt(x, z);
-  pos.setY(i, y);
-  const t = THREE.MathUtils.clamp((y + 1.6) / 3.2, 0, 1);
-  const c = new THREE.Color().setHSL(0.78 - t * 0.08, 0.42, 0.16 + t * 0.18);
-  colors.push(c.r, c.g, c.b);
-}
-groundGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-groundGeo.computeVertexNormals();
-const ground = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({
-  vertexColors: true, roughness: 0.92, metalness: 0.04
-}));
-ground.receiveShadow = true;
-scene.add(ground);
+            <div data-panel="protein" hidden>
+              <div class="tag">PERSISTENT WHEY BANK</div>
+              <h1 style="font-size: 28px"><span id="whey-count">0</span> whey</h1>
+              <div class="upgrade-list" id="upgrade-list"></div>
+              <div class="btn-row"><button class="primary" data-back>BACK</button></div>
+            </div>
+          </div>
+        </div>
 
-const deco = new THREE.Group();
-scene.add(deco);
-function addTree(x, z) {
-  const y = heightAt(x, z);
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16, 0.22, 1.6, 6),
-    new THREE.MeshStandardMaterial({color: 0x3a2430, roughness: 1})
-  );
-  trunk.position.set(x, y + 0.8, z);
-  trunk.castShadow = true;
-  const canopy = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(1.15, 0),
-    new THREE.MeshStandardMaterial({color: 0x5b2d6a, roughness: 0.7, emissive: 0x220818, emissiveIntensity: 0.2})
-  );
-  canopy.position.set(x, y + 2.05, z);
-  canopy.castShadow = true;
-  deco.add(trunk, canopy);
-}
-function addFlower(x, z) {
-  const y = heightAt(x, z);
-  const stem = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.03, 0.03, 0.45, 5),
-    new THREE.MeshStandardMaterial({color: 0x2f5a3a})
-  );
-  stem.position.set(x, y + 0.22, z);
-  const bloomMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 8, 8),
-    new THREE.MeshStandardMaterial({color: 0xff8ec8, emissive: 0xff4da6, emissiveIntensity: 0.55})
-  );
-  bloomMesh.position.set(x, y + 0.48, z);
-  deco.add(stem, bloomMesh);
-}
-for (let i = 0; i < 38; i++) {
-  const a = Math.random() * Math.PI * 2;
-  const r = 10 + Math.random() * 34;
-  addTree(Math.cos(a) * r, Math.sin(a) * r);
-}
-for (let i = 0; i < 70; i++) {
-  addFlower((Math.random() - 0.5) * 70, (Math.random() - 0.5) * 70);
-}
+        <div class="modal" id="modal">
+          <div class="modal-card" id="modal-body"></div>
+        </div>
 
-const river = new THREE.Mesh(
-  new THREE.PlaneGeometry(8, 70),
-  new THREE.MeshStandardMaterial({
-    color: 0x3a6cff, roughness: 0.15, metalness: 0.55,
-    emissive: 0x102060, emissiveIntensity: 0.35, transparent: true, opacity: 0.82
-  })
-);
-river.rotation.x = -Math.PI / 2;
-river.position.set(18, 0.18, -4);
-scene.add(river);
+        <div class="controls" aria-label="Touch controls">
+          <div class="dpad">
+            <div class="spacer"></div>
+            <div class="spacer"></div>
+            <div class="spacer"></div>
+            <button class="ctrl" id="ctrl-left" aria-label="Left">◀</button>
+            <div class="spacer"></div>
+            <button class="ctrl" id="ctrl-right" aria-label="Right">▶</button>
+          </div>
+          <div class="actions">
+            <button class="ctrl papi" id="ctrl-papi" aria-label="Papacito">PAPI</button>
+            <button class="ctrl wide" id="ctrl-dash" aria-label="Dash">DASH</button>
+            <button class="ctrl jump wide" id="ctrl-jump" aria-label="Jump">JUMP</button>
+            <button class="ctrl fire" id="ctrl-fire" aria-label="Fire">FIRE</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-function makeClaudia() {
-  const g = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({color: 0xf3c7b3, roughness: 0.55});
-  const coat = new THREE.MeshStandardMaterial({color: 0x6b3dff, roughness: 0.45, emissive: 0x2a1060, emissiveIntensity: 0.25});
-  const hair = new THREE.MeshStandardMaterial({color: 0x2b1a14, roughness: 0.7});
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.62, 6, 10), coat);
-  body.position.y = 0.78;
-  body.castShadow = true;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 16), skin);
-  head.position.y = 1.42;
-  head.castShadow = true;
-  const locks = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 12), hair);
-  locks.position.set(0, 1.48, -0.04);
-  locks.scale.set(1, 1.15, 1.05);
-  const lantern = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 12, 12),
-    new THREE.MeshStandardMaterial({color: 0xffe08a, emissive: 0xffc14d, emissiveIntensity: 2.4})
-  );
-  lantern.position.set(0.38, 0.86, 0.12);
-  const light = new THREE.PointLight(0xffd27a, 3.4, 9, 2);
-  light.position.copy(lantern.position);
-  g.add(body, head, locks, lantern, light);
-  g.userData.lantern = light;
-  return g;
-}
-
-const player = makeClaudia();
-player.position.set(0, heightAt(0, 8), 8);
-scene.add(player);
-
-const gate = new THREE.Group();
-const pillarMat = new THREE.MeshStandardMaterial({color: 0x2a2038, roughness: 0.7, metalness: 0.2});
-for (const x of [-2.2, 2.2]) {
-  const p = new THREE.Mesh(new THREE.BoxGeometry(0.7, 4.4, 0.7), pillarMat);
-  p.position.set(x, 2.2, 0);
-  p.castShadow = true;
-  gate.add(p);
-}
-const lintel = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.55, 0.8), pillarMat);
-lintel.position.set(0, 4.35, 0);
-gate.add(lintel);
-const rune = new THREE.Mesh(
-  new THREE.TorusGeometry(1.15, 0.08, 12, 32),
-  new THREE.MeshStandardMaterial({color: 0xffd56a, emissive: 0xffb020, emissiveIntensity: 0.2})
-);
-rune.position.set(0, 2.3, 0.1);
-gate.add(rune);
-gate.position.set(0, heightAt(0, -38), -38);
-scene.add(gate);
-const gateLight = new THREE.PointLight(0xffc14d, 0.4, 16, 2);
-gateLight.position.set(0, 3.2, -38);
-scene.add(gateLight);
-
-const starMeshes = [];
-const starTargets = [
-  [12, -6], [-14, -10], [6, -22], [-8, 16], [20, 10]
-];
-for (const [x, z] of starTargets) {
-  const star = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.38, 0),
-    new THREE.MeshStandardMaterial({color: 0xffe08a, emissive: 0xffc14d, emissiveIntensity: 1.8})
-  );
-  star.position.set(x, heightAt(x, z) + 1.15, z);
-  star.userData.taken = false;
-  scene.add(star);
-  const glow = new THREE.PointLight(0xffd56a, 2.2, 7, 2);
-  glow.position.copy(star.position);
-  scene.add(glow);
-  star.userData.glow = glow;
-  starMeshes.push(star);
-}
-
-const wisps = [];
-for (let i = 0; i < 6; i++) {
-  const w = new THREE.Mesh(
-    new THREE.SphereGeometry(0.42, 12, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0x1b1230, emissive: 0x6a3cff, emissiveIntensity: 0.7, transparent: true, opacity: 0.88
-    })
-  );
-  const ox = (Math.random() - 0.5) * 50;
-  const oz = (Math.random() - 0.5) * 50;
-  w.position.set(ox, heightAt(ox, oz) + 1.1, oz);
-  w.userData = {ox, oz, phase: Math.random() * Math.PI * 2, hitAt: 0};
-  scene.add(w);
-  wisps.push(w);
-}
-
-const keys = {};
-const look = {yaw: 0, pitch: 0.28};
-let pointerLocked = false;
-let joy = {x: 0, y: 0};
-let dashT = 0;
-let invuln = 0;
-let hp = 3;
-let stars = 0;
-let started = false;
-let ended = false;
-let muted = false;
-let camDist = 7.2;
-
-const heartsEl = document.getElementById('hearts');
-const starsEl = document.getElementById('stars');
-const msgEl = document.getElementById('msg');
-const subEl = document.getElementById('submsg');
-function banner(title, sub, ms = 1800) {
-  msgEl.textContent = title;
-  subEl.textContent = sub || '';
-  msgEl.style.opacity = 1;
-  subEl.style.opacity = sub ? 1 : 0;
-  clearTimeout(banner.t);
-  banner.t = setTimeout(() => {
-    msgEl.style.opacity = 0;
-    subEl.style.opacity = 0;
-  }, ms);
-}
-function hud() {
-  heartsEl.textContent = '♥'.repeat(hp) + '♡'.repeat(Math.max(0, 3 - hp));
-  starsEl.textContent = `✦ Memory stars  ${stars} / 5`;
-}
-hud();
-
-let audioCtx = null;
-function beep(freq, dur, type = 'sine', gain = 0.04) {
-  if (muted || !audioCtx) return;
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.type = type;
-  o.frequency.value = freq;
-  g.gain.value = gain;
-  o.connect(g).connect(audioCtx.destination);
-  o.start();
-  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
-  o.stop(audioCtx.currentTime + dur);
-}
-
-addEventListener('keydown', e => {
-  keys[e.code] = true;
-  if (e.code === 'KeyM') muted = !muted;
-  if (e.code === 'Space') {
-    e.preventDefault();
-    dashT = 0.28;
-  }
-});
-addEventListener('keyup', e => { keys[e.code] = false; });
-canvas.addEventListener('click', () => {
-  if (started) canvas.requestPointerLock?.();
-});
-document.addEventListener('pointerlockchange', () => {
-  pointerLocked = document.pointerLockElement === canvas;
-});
-addEventListener('mousemove', e => {
-  if (!pointerLocked) return;
-  look.yaw -= e.movementX * 0.0024;
-  look.pitch = THREE.MathUtils.clamp(look.pitch - e.movementY * 0.002, 0.08, 0.7);
-});
-
-const joyWrap = document.getElementById('joyWrap');
-const joyKnob = document.getElementById('joyKnob');
-function setJoy(clientX, clientY) {
-  const r = joyWrap.getBoundingClientRect();
-  const cx = r.left + r.width / 2;
-  const cy = r.top + r.height / 2;
-  let dx = (clientX - cx) / 46;
-  let dy = (clientY - cy) / 46;
-  const m = Math.hypot(dx, dy) || 1;
-  if (m > 1) { dx /= m; dy /= m; }
-  joy.x = dx;
-  joy.y = dy;
-  joyKnob.style.left = `${34 + dx * 28}px`;
-  joyKnob.style.top = `${34 + dy * 28}px`;
-}
-function clearJoy() {
-  joy.x = 0; joy.y = 0;
-  joyKnob.style.left = '34px';
-  joyKnob.style.top = '34px';
-}
-joyWrap.addEventListener('pointerdown', e => {
-  joyWrap.setPointerCapture(e.pointerId);
-  setJoy(e.clientX, e.clientY);
-});
-joyWrap.addEventListener('pointermove', e => {
-  if (e.pressure || (e.buttons & 1)) setJoy(e.clientX, e.clientY);
-});
-joyWrap.addEventListener('pointerup', clearJoy);
-joyWrap.addEventListener('pointercancel', clearJoy);
-document.getElementById('actBtn').addEventListener('click', () => { dashT = 0.28; });
-
-function finish(win) {
-  ended = true;
-  document.getElementById('end').style.display = 'flex';
-  document.getElementById('endKicker').textContent = win ? 'The Legend of Claudia' : 'The lantern dims';
-  document.getElementById('endTitle').textContent = win ? 'The gate opens' : 'Not this night';
-  document.getElementById('endBlurb').textContent = win
-    ? 'Claudia sets the five stars into the arch. Gold light floods the vale, and the gate remembers her name.'
-    : 'Shadow wisps close in. Claudia steadies the lantern. The vale will wait for another walk.';
-  beep(win ? 660 : 140, 0.35, win ? 'triangle' : 'sawtooth', 0.05);
-}
-
-function resetGame() {
-  hp = 3; stars = 0; ended = false; dashT = 0; invuln = 0;
-  player.position.set(0, heightAt(0, 8), 8);
-  look.yaw = 0;
-  for (const s of starMeshes) {
-    s.visible = true;
-    s.userData.taken = false;
-    s.userData.glow.intensity = 2.2;
-  }
-  rune.material.emissiveIntensity = 0.2;
-  gateLight.intensity = 0.4;
-  document.getElementById('end').style.display = 'none';
-  hud();
-}
-
-document.getElementById('startBtn').addEventListener('click', () => {
-  started = true;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  document.getElementById('overlay').style.opacity = 0;
-  setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 600);
-  banner('Duskwind Vale', 'Find the five memory stars', 2200);
-  beep(520, 0.12, 'triangle');
-});
-document.getElementById('againBtn').addEventListener('click', resetGame);
-
-const vel = new THREE.Vector3();
-const camTarget = new THREE.Vector3();
-let last = performance.now();
-
-function tick(now) {
-  const dt = Math.min(0.033, (now - last) / 1000);
-  last = now;
-  requestAnimationFrame(tick);
-  if (!started) {
-    camera.position.set(6, 5.5, 16);
-    camera.lookAt(player.position.x, player.position.y + 1.2, player.position.z);
-    composer.render();
-    return;
-  }
-
-  if (!ended) {
-    let ix = 0, iz = 0;
-    if (keys.KeyA || keys.ArrowLeft) ix -= 1;
-    if (keys.KeyD || keys.ArrowRight) ix += 1;
-    if (keys.KeyW || keys.ArrowUp) iz -= 1;
-    if (keys.KeyS || keys.ArrowDown) iz += 1;
-    ix += joy.x;
-    iz += joy.y;
-    if (keys.KeyQ) look.yaw += dt * 1.4;
-    if (keys.KeyE) look.yaw -= dt * 1.4;
-    const len = Math.hypot(ix, iz);
-    if (len > 1) { ix /= len; iz /= len; }
-    const speed = (dashT > 0 ? 11.5 : 5.6);
-    const fx = Math.sin(look.yaw);
-    const fz = Math.cos(look.yaw);
-    const rx = Math.cos(look.yaw);
-    const rz = -Math.sin(look.yaw);
-    vel.x = (fx * -iz + rx * ix) * speed;
-    vel.z = (fz * -iz + rz * ix) * speed;
-    player.position.x = THREE.MathUtils.clamp(player.position.x + vel.x * dt, -40, 40);
-    player.position.z = THREE.MathUtils.clamp(player.position.z + vel.z * dt, -42, 42);
-    player.position.y = heightAt(player.position.x, player.position.z);
-    if (len > 0.08) player.rotation.y = Math.atan2(vel.x, vel.z);
-    dashT = Math.max(0, dashT - dt);
-    invuln = Math.max(0, invuln - dt);
-    player.userData.lantern.intensity = 3.1 + Math.sin(now * 0.008) * 0.5;
-
-    for (const s of starMeshes) {
-      if (s.userData.taken) continue;
-      s.rotation.y += dt * 1.8;
-      s.position.y = heightAt(s.position.x, s.position.z) + 1.15 + Math.sin(now * 0.004 + s.position.x) * 0.12;
-      if (player.position.distanceTo(s.position) < 1.35) {
-        s.userData.taken = true;
-        s.visible = false;
-        s.userData.glow.intensity = 0;
-        stars += 1;
-        hud();
-        beep(640 + stars * 40, 0.16, 'triangle', 0.05);
-        banner(stars < 5 ? 'Memory star' : 'The arch answers', stars < 5 ? `${stars} of 5` : 'Return to the BDB gate', 1600);
-        if (stars >= 5) {
-          rune.material.emissiveIntensity = 1.6;
-          gateLight.intensity = 4.2;
-        }
-      }
-    }
-
-    for (const w of wisps) {
-      w.userData.phase += dt;
-      const px = w.userData.ox + Math.sin(w.userData.phase) * 6;
-      const pz = w.userData.oz + Math.cos(w.userData.phase * 0.8) * 6;
-      w.position.set(px, heightAt(px, pz) + 1.05, pz);
-      w.material.emissiveIntensity = 0.55 + Math.sin(now * 0.01 + w.userData.phase) * 0.25;
-      if (invuln <= 0 && dashT <= 0 && player.position.distanceTo(w.position) < 1.15) {
-        hp -= 1;
-        invuln = 1.15;
-        hud();
-        beep(110, 0.2, 'sawtooth', 0.05);
-        banner('A wisp bites', `${hp} heart${hp === 1 ? '' : 's'} left`, 1200);
-        if (hp <= 0) finish(false);
-      }
-    }
-
-    if (stars >= 5 && player.position.distanceTo(gate.position) < 3.2) finish(true);
-  }
-
-  const camOff = new THREE.Vector3(
-    Math.sin(look.yaw) * camDist,
-    2.4 + look.pitch * 6.5,
-    Math.cos(look.yaw) * camDist
-  );
-  camTarget.copy(player.position).add(new THREE.Vector3(0, 1.25, 0));
-  camera.position.lerp(player.position.clone().add(camOff), 0.12);
-  camera.lookAt(camTarget);
-  composer.render();
-}
-requestAnimationFrame(tick);
-
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-  composer.setSize(innerWidth, innerHeight);
-});
-</script>
-</body>
+    <script type="module">
+      import { Game } from "./js/game.js";
+      const stage = document.getElementById("stage");
+      const game = new Game(stage);
+      // expose for debug
+      window.BDB = game;
+    </script>
+  </body>
 </html>

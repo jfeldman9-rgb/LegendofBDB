@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#0a0c12"/>
+  <ellipse cx="32" cy="36" rx="14" ry="18" fill="#6b2d8b"/>
+  <ellipse cx="32" cy="36" rx="10" ry="14" fill="#9b4ec4"/>
+  <rect x="28" y="14" width="8" height="8" fill="#4a8f3a" rx="1"/>
+  <text x="32" y="58" text-anchor="middle" font-size="8" fill="#ffd56c" font-family="monospace">BDB</text>
+</svg>

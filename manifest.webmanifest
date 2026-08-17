@@ -1,0 +1,18 @@
+{
+  "name": "The Legend of Claudia: BDB's Awakening",
+  "short_name": "BDB Awakening",
+  "description": "Side-scrolling shooter. Eggplants. Protein. Poor judgment.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0c12",
+  "theme_color": "#0a0c12",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
