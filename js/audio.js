@@ -238,4 +238,21 @@ export class AudioBus {
     if (!this.sfxOn) return;
     this._tone(660, 0.06, "sine", 0.05);
   }
+
+  /** Keyboard ocarina-style note for Song of the Scoop. */
+  songNote(freq) {
+    if (!this.sfxOn || !this.ctx) return;
+    this._tone(freq, 0.22, "triangle", 0.11, 18);
+    this._tone(freq * 2, 0.16, "sine", 0.045, 8, this.ctx.currentTime + 0.01);
+  }
+
+  songOk() {
+    if (!this.sfxOn) return;
+    [392, 494, 587, 784].forEach((f, i) => this._tone(f, 0.22, "sine", 0.08, 12, this.ctx.currentTime + i * 0.07));
+  }
+
+  songFail() {
+    if (!this.sfxOn) return;
+    this._tone(180, 0.16, "square", 0.07, -40);
+  }
 }
