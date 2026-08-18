@@ -55,9 +55,17 @@
 
         <div class="talk" id="talk" hidden>
           <div class="talk-card">
-            <div class="talk-who" id="talk-who"></div>
-            <p class="talk-line" id="talk-line"></p>
-            <div class="talk-next">SPACE / ENTER / TAP</div>
+            <div class="talk-avatar-wrap">
+              <canvas id="talk-portrait" width="84" height="84"></canvas>
+            </div>
+            <div class="talk-body">
+              <div class="talk-who" id="talk-who"></div>
+              <p class="talk-line" id="talk-line"></p>
+              <div class="talk-next">
+                <span>SPACE / ENTER / TAP</span>
+                <span class="talk-arrow" aria-hidden="true">▼</span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="toast" id="toast"></div>

@@ -74,8 +74,8 @@ function screenHub() {
       solid(70, 430, 64, 34, "planter"),
     ],
     exits: [
-      zone("to-east", 860, 270, 80, 200, { to: "east", spawn: { x: 80, y: 350 } }),
-      zone("to-palace", 140, 220, 108, 56, { to: "palace", spawn: { x: 470, y: 360 } }),
+      zone("to-east", 860, 270, 80, 200, { to: "east", spawn: { x: 80, y: 350 }, dir: "e" }),
+      zone("to-palace", 140, 220, 108, 56, { to: "palace", spawn: { x: 470, y: 360 }, dir: "enter" }),
     ],
     door: null,
     eve: null,
@@ -104,7 +104,9 @@ function screenEast(doorUnlocked) {
       solid(640, 262, 48, 36, "planter"),
       solid(868, 210, 86, 48, "lintel"),
     ],
-    exits: [zone("to-hub", 20, 260, 40, 220, { to: "hub", spawn: { x: 740, y: 350 } })],
+    exits: [
+      zone("to-hub", 20, 260, 40, 220, { to: "hub", spawn: { x: 740, y: 350 }, dir: "w" }),
+    ],
     door: {
       x: 878,
       y: 258,
@@ -136,7 +138,9 @@ function screenPalace() {
       solid(70, 200, 40, 280, "wall"),
       solid(850, 200, 40, 280, "wall"),
     ],
-    exits: [zone("to-hub", 400, 450, 160, 70, { to: "hub", spawn: { x: 176, y: 300 } })],
+    exits: [
+      zone("to-hub", 400, 450, 160, 70, { to: "hub", spawn: { x: 176, y: 300 }, dir: "s" }),
+    ],
     door: null,
     eve: { x: 430, y: 168, w: 72, h: 96 },
     elon: false,
@@ -156,7 +160,7 @@ export function makeElon(screen) {
     hp: 1,
     alive: true,
     facing: -1,
-    vx: -86,
+    vx: -92,
     minX: 160,
     maxX: 780,
     t: 0,

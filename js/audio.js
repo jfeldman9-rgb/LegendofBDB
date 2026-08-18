@@ -1,4 +1,4 @@
-// Audio bus — HD soundtrack + SFX. Drop a Suno file at assets/audio/suno-bgm.mp3 (or pass setCustomTrack).
+// Audio bus — HD soundtrack + rich procedural Web Audio chiptune & Zelda-style FX
 
 export class AudioBus {
   constructor() {
@@ -44,7 +44,6 @@ export class AudioBus {
     this.musicEl.volume = 0.34;
   }
 
-  /** Call after user uploads a Suno track (Blob or object URL). */
   setCustomTrack(urlOrBlob) {
     if (this.musicEl) {
       this.musicEl.pause();
@@ -89,7 +88,6 @@ export class AudioBus {
     if (this.musicEl) {
       this.musicEl.muted = false;
       this.musicEl.play().catch(() => {
-        // Autoplay blocked — procedural fallback kickstarts after gesture
         this._startChiptuneFallback();
       });
       return;
@@ -131,7 +129,7 @@ export class AudioBus {
     o.frequency.setValueAtTime(Math.max(20, freq), start);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), start + dur);
     g.gain.setValueAtTime(0.0001, start);
-    g.gain.exponentialRampToValueAtTime(vol, start + 0.01);
+    g.gain.exponentialRampToValueAtTime(vol, start + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
     o.connect(g);
     g.connect(music ? this.musicGain : this.sfx);
@@ -161,50 +159,82 @@ export class AudioBus {
     src.start(start);
   }
 
-  jump() {
+  shoot() {
     if (!this.sfxOn) return;
-    this._noise(0.08, 0.04, 0, "highpass", 1400);
-    this._tone(220, 0.12, "triangle", 0.08, 420);
+    this._noise(0.09, 0.12, 0, "bandpass", 800);
+    this._tone(175, 0.12, "sawtooth", 0.11, -85);
   }
-  shoot(charged = false) {
+
+  splat() {
     if (!this.sfxOn) return;
-    this._noise(charged ? 0.16 : 0.07, charged ? 0.16 : 0.1, 0, "bandpass", charged ? 500 : 900);
-    this._tone(charged ? 90 : 160, charged ? 0.22 : 0.09, "sawtooth", charged ? 0.14 : 0.1, -80);
+    this._noise(0.14, 0.16, 0, "lowpass", 700);
+    this._tone(130, 0.1, "sine", 0.09, -60);
   }
+
+  overheat() {
+    if (!this.sfxOn) return;
+    this._noise(0.35, 0.15, 0, "bandpass", 2400);
+    this._tone(350, 0.25, "sawtooth", 0.08, -180);
+  }
+
+  whoosh() {
+    if (!this.sfxOn) return;
+    this._noise(0.24, 0.08, 0, "bandpass", 1100);
+  }
+
   pickup() {
-    if (!this.sfxOn) return;
-    [440, 550, 660, 880].forEach((f, i) => this._tone(f, 0.12, "sine", 0.07, 40, this.ctx.currentTime + i * 0.05));
-  }
-  hit() {
-    if (!this.sfxOn) return;
-    this._noise(0.1, 0.12, 0, "bandpass", 600);
-    this._tone(100, 0.1, "square", 0.08, -40);
-  }
-  hurt() {
-    if (!this.sfxOn) return;
-    this._noise(0.18, 0.1, 0, "lowpass", 800);
-    this._tone(200, 0.25, "sawtooth", 0.1, -120);
-  }
-  yell() {
     if (!this.sfxOn || !this.ctx) return;
     const t = this.ctx.currentTime;
-    this._tone(180, 0.12, "sawtooth", 0.1, 40, t);
-    this._tone(220, 0.14, "square", 0.08, -30, t + 0.11);
-    this._tone(160, 0.18, "sawtooth", 0.1, 80, t + 0.24);
-    this._tone(280, 0.2, "triangle", 0.07, -60, t + 0.4);
+    [440, 554, 659, 880].forEach((f, i) => this._tone(f, 0.12, "sine", 0.08, 30, t + i * 0.045));
   }
+
+  hit() {
+    if (!this.sfxOn) return;
+    this._noise(0.12, 0.18, 0, "bandpass", 650);
+    this._tone(110, 0.12, "square", 0.12, -45);
+  }
+
+  hurt() {
+    if (!this.sfxOn) return;
+    this._noise(0.2, 0.14, 0, "lowpass", 850);
+    this._tone(220, 0.25, "sawtooth", 0.12, -140);
+  }
+
+  /** Zelda secret discovery arpeggio for checkpoint / door unlock */
+  secret() {
+    if (!this.sfxOn || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const notes = [784, 740, 622, 440, 415, 659, 831, 1046]; // G5, F#5, D#5, A4, G#4, E5, G#5, C6
+    notes.forEach((freq, i) => {
+      this._tone(freq, 0.18, "triangle", 0.12, 0, t + i * 0.085);
+      this._tone(freq * 0.5, 0.18, "square", 0.04, 0, t + i * 0.085);
+    });
+  }
+
+  checkpoint() {
+    this.secret();
+  }
+
+  /** Character speech blip for typewriter text */
+  chatter(who = "BDB") {
+    if (!this.sfxOn || !this.ctx) return;
+    const pitch = who === "ELON" ? 480 + (Math.random() - 0.5) * 60 : who === "EVE" ? 340 + (Math.random() - 0.5) * 40 : 160 + (Math.random() - 0.5) * 30;
+    const type = who === "ELON" ? "square" : who === "EVE" ? "triangle" : "sawtooth";
+    this._tone(pitch, 0.04, type, 0.04, 0);
+  }
+
   /** Elon scooter cackle — if this is silent, the pest is broken. */
   laugh() {
     if (!this.sfxOn || !this.ctx) return;
     const t = this.ctx.currentTime;
     const beats = [
-      [420, 0.0, 0.12],
-      [360, 0.1, 0.1],
-      [480, 0.2, 0.14],
-      [300, 0.34, 0.1],
-      [520, 0.46, 0.16],
-      [340, 0.62, 0.12],
-      [400, 0.76, 0.1],
+      [440, 0.0, 0.12],
+      [370, 0.1, 0.1],
+      [500, 0.2, 0.14],
+      [320, 0.34, 0.1],
+      [540, 0.46, 0.16],
+      [360, 0.62, 0.12],
+      [420, 0.76, 0.1],
     ];
     beats.forEach(([f, when, dur]) => {
       this._tone(f, dur, "square", 0.13, -80, t + when);
@@ -212,12 +242,13 @@ export class AudioBus {
       this._noise(dur * 0.55, 0.045, t + when, "bandpass", 1600);
     });
   }
+
   papacito() {
     if (!this.sfxOn || !this.ctx) return;
     this.duck();
-    this._noise(1.0, 0.2, 0, "lowpass", 700);
-    this._noise(0.4, 0.12, 0, "highpass", 2000);
-    [90, 70, 50, 40].forEach((f, i) => this._tone(f, 0.9, "sawtooth", 0.12, -10, this.ctx.currentTime + i * 0.05));
+    this._noise(1.0, 0.22, 0, "lowpass", 700);
+    this._noise(0.4, 0.14, 0, "highpass", 2000);
+    [90, 70, 50, 40].forEach((f, i) => this._tone(f, 0.9, "sawtooth", 0.14, -10, this.ctx.currentTime + i * 0.05));
     const t = this.ctx.currentTime + 0.15;
     [520, 480, 560, 440, 500, 380, 420, 340, 300, 260].forEach((f, i) => {
       this._tone(f, 0.09, "square", 0.09, -30, t + i * 0.07);
@@ -226,14 +257,13 @@ export class AudioBus {
     setTimeout(() => this.unduck(), 1800);
     if (navigator.vibrate) navigator.vibrate([30, 40, 80, 40, 120]);
   }
+
   win() {
-    if (!this.sfxOn) return;
-    [262, 330, 392, 523, 659, 784].forEach((f, i) => this._tone(f, 0.35, "sine", 0.08, 10, this.ctx.currentTime + i * 0.09));
+    if (!this.sfxOn || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    [262, 330, 392, 523, 659, 784].forEach((f, i) => this._tone(f, 0.35, "sine", 0.08, 10, t + i * 0.09));
   }
-  checkpoint() {
-    if (!this.sfxOn) return;
-    [330, 392, 523].forEach((f, i) => this._tone(f, 0.2, "triangle", 0.07, 20, this.ctx.currentTime + i * 0.07));
-  }
+
   ui() {
     if (!this.sfxOn) return;
     this._tone(660, 0.06, "sine", 0.05);

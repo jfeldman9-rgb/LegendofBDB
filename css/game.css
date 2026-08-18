@@ -200,9 +200,9 @@ canvas#game {
 
 .talk {
   position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 16%;
+  left: 5%;
+  right: 5%;
+  bottom: 12%;
   z-index: 32;
   display: none;
   pointer-events: auto;
@@ -213,34 +213,90 @@ canvas#game {
 }
 
 .talk-card {
-  background: linear-gradient(165deg, rgba(16, 18, 32, 0.94), rgba(8, 8, 16, 0.94));
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 14px;
+  align-items: center;
+  background: linear-gradient(165deg, rgba(14, 18, 30, 0.96), rgba(8, 10, 18, 0.98));
   border: 3px solid var(--gold);
   border-radius: 14px;
-  padding: 12px 16px 10px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 24px rgba(255, 213, 108, 0.12);
+  padding: 10px 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75), 0 0 28px rgba(255, 213, 108, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.talk-avatar-wrap {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid var(--gold);
+  background: #090c14;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0, 0, 0, 0.5);
+  display: grid;
+  place-items: center;
+}
+
+#talk-portrait {
+  width: 84px;
+  height: 84px;
+  display: block;
+  object-fit: cover;
+  image-rendering: auto;
+}
+
+.talk-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 84px;
 }
 
 .talk-who {
   color: var(--mint);
-  letter-spacing: 0.16em;
-  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-size: 12px;
+  font-weight: 800;
   font-family: var(--font-display);
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(126, 240, 200, 0.5);
 }
 
 .talk-line {
   margin: 6px 0 0;
   color: #fff;
   font-family: var(--font-display);
-  font-size: clamp(15px, 2.4vw, 20px);
+  font-size: clamp(15px, 2.3vw, 20px);
   line-height: 1.35;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  min-height: 1.4em;
 }
 
 .talk-next {
-  margin-top: 8px;
-  text-align: right;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   color: var(--muted);
   font-size: 10px;
   letter-spacing: 0.08em;
+}
+
+.talk-arrow {
+  color: var(--gold);
+  font-size: 11px;
+  animation: talkBounce 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes talkBounce {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(3px);
+  }
 }
 
 .disclaimer {

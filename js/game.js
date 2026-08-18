@@ -60,6 +60,7 @@ export class Game {
     this.menu = "main";
     this.keys = Object.create(null);
     this.touch = { left: false, right: false, up: false, down: false, fire: false, papi: false };
+    this.gamepad = { left: false, right: false, up: false, down: false, fire: false, papi: false };
     this.fireHeld = 0;
     this.toastT = 0;
     this.bannerT = 0;
@@ -67,11 +68,11 @@ export class Game {
     this.usingTouch = false;
     this.bootstrapped = false;
     this.talk = null;
-    this.fade = 0;
-    this.fadeDir = 0;
-    this.pendingScreen = null;
-    this.elon = null;
-    this.queuedTalk = null;
+    this.typewriter = { text: "", target: "", index: 0, speed: 45, timer: 0 };
+    this.scroll = null;
+    this.recoil = 0;
+    this.muzzleFlash = 0;
+    this.splats = [];
     this.projectiles = [];
     this.particles = [];
     this.score = 0;
@@ -79,6 +80,10 @@ export class Game {
     this.shakesGot = 0;
     this.shakeN = 0;
     this.charges = 0;
+    this.elon = null;
+    this.queuedTalk = null;
+    this.doorLineReady = true;
+    this.palaceTalkQueued = false;
     this.screen = buildScreen("hub", this.save);
     this._bindUI();
     this._bindInput();
@@ -167,6 +172,7 @@ export class Game {
       btnPause: $("#btn-pause"),
       papiBtn: $("#ctrl-papi"),
       talk: $("#talk"),
+      talkPortrait: $("#talk-portrait"),
       talkWho: $("#talk-who"),
       talkLine: $("#talk-line"),
       heat: $("#heat"),
@@ -268,6 +274,40 @@ export class Game {
       this.keys = Object.create(null);
       Object.keys(this.touch).forEach((k) => (this.touch[k] = false));
     });
+  }
+
+  _pollGamepad() {
+    if (!navigator.getGamepads) return;
+    const gps = navigator.getGamepads();
+    const gp = gps && gps[0];
+    if (!gp) return;
+
+    const dead = 0.25;
+    const ax0 = gp.axes[0] || 0;
+    const ax1 = gp.axes[1] || 0;
+    
+    this.gamepad.left = ax0 < -dead || (gp.buttons[14] && gp.buttons[14].pressed);
+    this.gamepad.right = ax0 > dead || (gp.buttons[15] && gp.buttons[15].pressed);
+    this.gamepad.up = ax1 < -dead || (gp.buttons[12] && gp.buttons[12].pressed);
+    this.gamepad.down = ax1 > dead || (gp.buttons[13] && gp.buttons[13].pressed);
+
+    const btnFire = (gp.buttons[0] && gp.buttons[0].pressed) || (gp.buttons[2] && gp.buttons[2].pressed) || (gp.buttons[5] && gp.buttons[5].pressed);
+    const btnPapi = (gp.buttons[1] && gp.buttons[1].pressed) || (gp.buttons[3] && gp.buttons[3].pressed) || (gp.buttons[4] && gp.buttons[4].pressed);
+    const btnPause = gp.buttons[9] && gp.buttons[9].pressed;
+
+    if (btnFire && !this.gamepad.fire) {
+      if (this.mode === "talk") this.advanceTalk();
+    }
+    if (btnPapi && !this.gamepad.papi) {
+      this.papiPressed = true;
+    }
+    if (btnPause && !this.gamepad.pause) {
+      this.togglePause();
+    }
+
+    this.gamepad.fire = !!btnFire;
+    this.gamepad.papi = !!btnPapi;
+    this.gamepad.pause = !!btnPause;
   }
 
   showMenu(which) {
@@ -400,9 +440,11 @@ export class Game {
     this.shakeN = 0;
     this.charges = 0;
     this.elapsed = 0;
+    this.splats = [];
     this.projectiles = [];
     this.particles = [];
     this.papacitoT = 0;
+    this.scroll = null;
     this.enterScreen("hub", null, true);
     this.mode = "playing";
     this.banner(this.screen.banner, 2.2);
@@ -423,6 +465,7 @@ export class Game {
       heat: 0,
       overheat: 0,
       anim: 0,
+      footstepT: 0,
       checkpoint: { screen: "hub", x: spawn.x, y: spawn.y },
     };
     this.fireCooldown = 0;
@@ -441,6 +484,7 @@ export class Game {
       this.player.vy = 0;
     }
     this.projectiles = [];
+    this.splats = [];
     this.doorLineReady = true;
     this.palaceTalkQueued = false;
     if (id === "east") {
@@ -455,11 +499,38 @@ export class Game {
     this.syncHUD();
   }
 
-  requestScreen(id, spawn) {
-    if (this.fadeDir !== 0) return;
-    this.pendingScreen = { id, spawn };
-    this.fade = 0;
-    this.fadeDir = 1;
+  requestScreen(id, spawn, dir = "fade") {
+    if (this.scroll) return;
+
+    if (dir === "e" || dir === "w") {
+      this.audio.whoosh();
+      const fromScreen = this.screen;
+      const toScreen = buildScreen(id, this.save);
+      const startX = this.player.x;
+      const startY = this.player.y;
+      const targetX = spawn ? spawn.x : toScreen.spawn.x;
+      const targetY = spawn ? spawn.y : toScreen.spawn.y;
+
+      this.scroll = {
+        dir,
+        progress: 0,
+        fromScreen,
+        toScreen,
+        targetId: id,
+        targetSpawn: { x: targetX, y: targetY },
+        fromX: startX,
+        fromY: startY,
+      };
+    } else {
+      // Interior door transition or fallback
+      this.audio.whoosh();
+      this.scroll = {
+        dir: "iris",
+        progress: 0,
+        targetId: id,
+        targetSpawn: spawn,
+      };
+    }
   }
 
   togglePause() {
@@ -480,7 +551,7 @@ export class Game {
   openHowModal() {
     this.openModal(
       "HOW TO WAKE BDB",
-      "Move WASD / arrows · Fire J or SPACE (Street Produce) · Papacito K\nTalk: SPACE / ENTER / tap. Overheats if mashed. No sword.",
+      "Move WASD / arrows / Gamepad · Fire J, SPACE or A (Street Produce) · Papacito K\nTalk: SPACE / ENTER / A button / tap. Overheats if mashed. No sword.",
       [["BACK", () => this.togglePause()]]
     );
   }
@@ -552,10 +623,27 @@ export class Game {
     if (!this.talk || !this.ui.talk) return;
     const line = this.talk.lines[this.talk.i];
     this.ui.talkWho.textContent = line.who;
-    this.ui.talkLine.textContent = line.text;
+    
+    // Typewriter state
+    this.typewriter.target = line.text;
+    this.typewriter.text = "";
+    this.typewriter.index = 0;
+    this.typewriter.timer = 0;
+    this.ui.talkLine.textContent = "";
+
+    // Render avatar portrait
+    if (this.ui.talkPortrait) {
+      const pctx = this.ui.talkPortrait.getContext("2d");
+      pctx.clearRect(0, 0, 84, 84);
+      const portrait = this.sheet.portraits && this.sheet.portraits[line.who];
+      if (portrait) {
+        pctx.drawImage(portrait, 0, 0, 84, 84);
+      }
+    }
+
     this.ui.talk.hidden = false;
     this.ui.talk.classList.add("show");
-    this.audio.ui();
+    this.audio.chatter(line.who);
   }
 
   hideTalk() {
@@ -567,6 +655,13 @@ export class Game {
 
   advanceTalk() {
     if (!this.talk) return;
+    // If still typing, finish the current line immediately
+    if (this.typewriter.text.length < this.typewriter.target.length) {
+      this.typewriter.text = this.typewriter.target;
+      this.ui.talkLine.textContent = this.typewriter.target;
+      return;
+    }
+
     this.talk.i++;
     if (this.talk.i >= this.talk.lines.length) {
       const done = this.talk.onDone;
@@ -603,25 +698,26 @@ export class Game {
   loop(t) {
     const dt = Math.min(0.05, (t - this.last) / 1000);
     this.last = t;
+    this._pollGamepad();
     this.update(dt);
     this.draw();
     requestAnimationFrame((nt) => this.loop(nt));
   }
 
   left() {
-    return this.keys.a || this.keys.arrowleft || this.touch.left;
+    return this.keys.a || this.keys.arrowleft || this.touch.left || this.gamepad.left;
   }
   right() {
-    return this.keys.d || this.keys.arrowright || this.touch.right;
+    return this.keys.d || this.keys.arrowright || this.touch.right || this.gamepad.right;
   }
   up() {
-    return this.keys.w || this.keys.arrowup || this.touch.up;
+    return this.keys.w || this.keys.arrowup || this.touch.up || this.gamepad.up;
   }
   down() {
-    return this.keys.s || this.keys.arrowdown || this.touch.down;
+    return this.keys.s || this.keys.arrowdown || this.touch.down || this.gamepad.down;
   }
   firing() {
-    return this.keys.j || this.keys[" "] || this.touch.fire;
+    return this.keys.j || this.keys[" "] || this.touch.fire || this.gamepad.fire;
   }
 
   update(dt) {
@@ -634,18 +730,16 @@ export class Game {
       if (this.bannerT <= 0) this.ui.banner.classList.remove("show");
     }
 
-    if (this.fadeDir !== 0) {
-      this.fade += this.fadeDir * dt * 4.2;
-      if (this.fadeDir > 0 && this.fade >= 1) {
-        this.fade = 1;
-        if (this.pendingScreen) {
-          this.enterScreen(this.pendingScreen.id, this.pendingScreen.spawn);
-          this.pendingScreen = null;
-        }
-        this.fadeDir = -1;
-      } else if (this.fadeDir < 0 && this.fade <= 0) {
-        this.fade = 0;
-        this.fadeDir = 0;
+    if (this.recoil > 0) this.recoil = Math.max(0, this.recoil - dt * 10);
+    if (this.muzzleFlash > 0) this.muzzleFlash = Math.max(0, this.muzzleFlash - dt * 8);
+
+    // Screen Scroll Transition (ALttP Zelda Style)
+    if (this.scroll) {
+      this.scroll.progress += dt * 2.5; // ~0.4s duration
+      if (this.scroll.progress >= 1) {
+        const sc = this.scroll;
+        this.scroll = null;
+        this.enterScreen(sc.targetId, sc.targetSpawn);
         if (this.palaceTalkQueued && this.mode === "playing") {
           this.palaceTalkQueued = false;
           this.startTalk(LINES.eve, () => this.finishPalaceTalk());
@@ -673,6 +767,18 @@ export class Game {
     }
 
     if (this.mode === "talk") {
+      if (this.talk && this.typewriter.text.length < this.typewriter.target.length) {
+        this.typewriter.timer += dt * 1000;
+        if (this.typewriter.timer >= this.typewriter.speed) {
+          this.typewriter.timer = 0;
+          this.typewriter.index++;
+          this.typewriter.text = this.typewriter.target.slice(0, this.typewriter.index);
+          this.ui.talkLine.textContent = this.typewriter.text;
+          if (this.typewriter.index % 2 === 0) {
+            this.audio.chatter(this.talk.lines[this.talk.i].who);
+          }
+        }
+      }
       this.updateParticles(dt);
       return;
     }
@@ -686,9 +792,27 @@ export class Game {
     const p = this.player;
     p.anim += dt;
     p.inv = Math.max(0, p.inv - dt);
+    
+    // Gun cooling
     p.overheat = Math.max(0, p.overheat - dt);
-    if (p.overheat <= 0) p.heat = Math.max(0, p.heat - dt * 0.38);
+    if (p.overheat <= 0) p.heat = Math.max(0, p.heat - dt * 0.4);
     this.fireCooldown = Math.max(0, this.fireCooldown - dt);
+
+    // Steam particles when warm
+    if (p.heat > 0.4 && Math.random() < 0.25) {
+      const dir = FACE[p.facing];
+      this.particles.push({
+        x: p.x + p.w / 2 + dir.x * 20,
+        y: p.y + p.h * 0.45 + dir.y * 10,
+        vx: (Math.random() - 0.5) * 15,
+        vy: -25 - Math.random() * 20,
+        life: 0.35,
+        max: 0.35,
+        color: p.overheat > 0 ? "rgba(255, 90, 60, 0.7)" : "rgba(210, 150, 255, 0.5)",
+        size: 3,
+        text: null,
+      });
+    }
 
     let ax = 0;
     let ay = 0;
@@ -700,12 +824,19 @@ export class Game {
       ax *= Math.SQRT1_2;
       ay *= Math.SQRT1_2;
     }
-    const speed = 168;
+    const speed = 175;
     p.vx = ax * speed;
     p.vy = ay * speed;
     if (ax || ay) {
       if (Math.abs(ax) > Math.abs(ay)) p.facing = ax > 0 ? "e" : "w";
       else p.facing = ay > 0 ? "s" : "n";
+      
+      // Footstep dust
+      p.footstepT += dt;
+      if (p.footstepT > 0.18) {
+        p.footstepT = 0;
+        this.burst(p.x + p.w / 2, p.y + p.h - 2, "rgba(255, 230, 180, 0.3)", 2);
+      }
     }
 
     this._moveCollide(p, dt);
@@ -714,7 +845,7 @@ export class Game {
       this.fireHeld += dt;
       if (this.fireCooldown <= 0) {
         this.shoot();
-        this.fireCooldown = 0.2;
+        this.fireCooldown = 0.22;
       }
     } else {
       this.fireHeld = 0;
@@ -726,6 +857,7 @@ export class Game {
     this._pickups(dt);
     this._updateElon(dt);
     this._updateProjectiles(dt);
+    this._updateSplats(dt);
     this._checkExits();
     this._checkDoor();
 
@@ -771,7 +903,7 @@ export class Game {
     if (!hit) return;
     const spawn = { ...hit.spawn };
     if (hit.to === "east" || hit.to === "hub") spawn.y = clamp(this.player.y, 270, 430);
-    this.requestScreen(hit.to, spawn);
+    this.requestScreen(hit.to, spawn, hit.dir || "fade");
   }
 
   _checkDoor() {
@@ -791,7 +923,7 @@ export class Game {
     writeSave(this.save);
     this.player.checkpoint = { screen: "hub", x: 176, y: 300 };
     this.player.hearts = 3;
-    this.audio.checkpoint();
+    this.audio.secret();
     this.toast(CHECKPOINT_TOAST);
     this.syncHUD();
   }
@@ -812,7 +944,7 @@ export class Game {
     if (e.laughT <= 0 && this.mode === "playing") {
       this.audio.laugh();
       e.laughT = 2.15 + Math.random() * 0.4;
-      this.floatText(e.x + e.w / 2, e.y - 8, "HA");
+      this.floatText(e.x + e.w / 2, e.y - 8, "HA! HA!");
     }
     e.x += e.vx * dt;
     if (e.x < e.minX) {
@@ -824,6 +956,22 @@ export class Game {
     }
     e.facing = e.vx >= 0 ? 1 : -1;
     e.y = e.homeY + Math.sin(e.t * 6) * 3;
+
+    // Scooter spark trail
+    if (Math.random() < 0.35) {
+      this.particles.push({
+        x: e.facing > 0 ? e.x : e.x + e.w,
+        y: e.y + e.h - 4,
+        vx: -e.facing * (40 + Math.random() * 30),
+        vy: -10 - Math.random() * 20,
+        life: 0.25,
+        max: 0.25,
+        color: Math.random() < 0.5 ? "#7ec8f0" : "#ffaa40",
+        size: 2.5,
+        text: null,
+      });
+    }
+
     if (aabb(this.player, e) && this.player.inv <= 0) this.hurt();
   }
 
@@ -842,7 +990,7 @@ export class Game {
       writeSave(this.save);
       if (this.save.upgrades.shakeHeal) p.hearts = Math.min(3, p.hearts + 1);
       this.audio.pickup();
-      this.burst(s.x + 6, s.y + 8, "#7ef0c8", 12);
+      this.burst(s.x + 6, s.y + 8, "#7ef0c8", 14);
       if (this.shakeN >= 3) {
         this.shakeN = 0;
         this.charges = Math.min(2, this.charges + 1);
@@ -863,8 +1011,25 @@ export class Game {
       }
       pr.life -= dt;
       pr.spin += dt * 10;
+
+      // Produce sparkle trail
+      if (Math.random() < 0.4) {
+        this.particles.push({
+          x: pr.x + pr.w / 2,
+          y: pr.y + pr.h / 2 - pr.z,
+          vx: (Math.random() - 0.5) * 20,
+          vy: (Math.random() - 0.5) * 20,
+          life: 0.3,
+          max: 0.3,
+          color: "#d07aff",
+          size: 3,
+          text: null,
+        });
+      }
+
       if (pr.friendly && this.elon && this.elon.alive && aabb(pr, this.elon)) {
         this.killElon();
+        this.addSplat(pr.x, pr.y);
         pr.life = 0;
       }
       for (const s of this._solids()) {
@@ -872,40 +1037,66 @@ export class Game {
         if (!aabb(pr, s)) continue;
         if (s.kind === "planter" || s.kind === "velvet" || s.kind === "wall" || s.kind === "palace" || s.kind === "bar") {
           pr.life = 0;
-          this.burst(pr.x, pr.y, "#c768eb", 4);
+          this.addSplat(pr.x, pr.y);
+          this.audio.splat();
+          this.burst(pr.x, pr.y, "#c768eb", 8);
         }
       }
     }
     this.projectiles = this.projectiles.filter((pr) => pr.life > 0 && pr.x > -40 && pr.x < W + 40 && pr.y > -40 && pr.y < H + 40);
   }
 
+  addSplat(x, y) {
+    this.splats.push({
+      x,
+      y,
+      radius: 14 + Math.random() * 8,
+      life: 4.0,
+      max: 4.0,
+      color: "#8a2aab",
+    });
+  }
+
+  _updateSplats(dt) {
+    for (const sp of this.splats) {
+      sp.life -= dt;
+    }
+    this.splats = this.splats.filter((sp) => sp.life > 0);
+  }
+
   shoot() {
     const p = this.player;
     const dir = FACE[p.facing];
-    const speed = 260;
+    const speed = 275;
+    this.recoil = 1;
+    this.muzzleFlash = 1;
+    
     this.projectiles.push({
-      x: p.x + p.w / 2 + dir.x * 18 - 8,
-      y: p.y + p.h * 0.45 + dir.y * 10,
-      w: 16,
-      h: 12,
+      x: p.x + p.w / 2 + dir.x * 20 - 8,
+      y: p.y + p.h * 0.45 + dir.y * 12,
+      w: 18,
+      h: 14,
       vx: dir.x * speed,
       vy: dir.y * speed,
-      z: 10,
-      vz: 90,
+      z: 12,
+      vz: 95,
       grav: 260,
       life: 1.35,
       friendly: true,
       kind: "eggplant",
       spin: 0,
     });
+
     p.heat = Math.min(1, p.heat + 0.22);
     if (p.heat >= 1) {
       p.overheat = 1.15;
       p.heat = 0;
+      this.audio.overheat();
       this.toast("CANNON OVERHEATED — LET THE PRODUCE BREATHE");
+      this.burst(p.x + p.w / 2 + dir.x * 20, p.y + p.h * 0.45, "#ff5a3c", 12);
     }
-    this.audio.shoot(false);
-    this.burst(p.x + p.w / 2 + dir.x * 20, p.y + p.h * 0.4, "#c768eb", 6);
+    this.audio.shoot();
+    this.burst(p.x + p.w / 2 + dir.x * 22, p.y + p.h * 0.42, "#c768eb", 6);
   }
 
   killElon() {
@@ -915,7 +1106,7 @@ export class Game {
     this.kills++;
     this.score += 200;
     this.audio.hit();
-    this.burst(e.x + e.w / 2, e.y + e.h / 2, "#ff8a2a", 18);
+    this.burst(e.x + e.w / 2, e.y + e.h / 2, "#ff8a2a", 24);
     if (this.mode === "papacito") this.queuedTalk = LINES.elonDeath;
     else this.startTalk(LINES.elonDeath);
   }
@@ -943,7 +1134,7 @@ export class Game {
     p.inv = 1.15;
     this.audio.hurt();
     this.toast(pick(QUIPS.hurt));
-    this.burst(p.x + p.w / 2, p.y + p.h / 2, "#ff5b6e", 14);
+    this.burst(p.x + p.w / 2, p.y + p.h / 2, "#ff5b6e", 16);
     if (p.hearts <= 0) {
       this.mode = "dead";
       this.hideTalk();
@@ -986,7 +1177,7 @@ export class Game {
   }
 
   floatText(x, y, text) {
-    this.particles.push({ x, y, vx: 0, vy: -22, life: 0.7, max: 0.7, color: "#ffd56c", size: 8, text });
+    this.particles.push({ x, y, vx: 0, vy: -22, life: 0.8, max: 0.8, color: "#ffd56c", size: 9, text });
   }
 
   updateParticles(dt) {
@@ -1016,16 +1207,50 @@ export class Game {
       return;
     }
 
+    // ALttP Screen Scroll Rendering
+    if (this.scroll) {
+      const sc = this.scroll;
+      if (sc.dir === "e" || sc.dir === "w") {
+        const offset = sc.progress * W;
+        ctx.save();
+        if (sc.dir === "e") {
+          ctx.translate(-offset, 0);
+          this.drawScreenWorld(ctx, sc.fromScreen);
+          ctx.translate(W, 0);
+          this.drawScreenWorld(ctx, sc.toScreen);
+        } else {
+          ctx.translate(offset, 0);
+          this.drawScreenWorld(ctx, sc.fromScreen);
+          ctx.translate(-W, 0);
+          this.drawScreenWorld(ctx, sc.toScreen);
+        }
+        ctx.restore();
+
+        // Draw walking player across seam
+        const px = sc.fromX + (sc.targetSpawn.x - sc.fromX) * sc.progress;
+        const py = sc.fromY + (sc.targetSpawn.y - sc.fromY) * sc.progress;
+        this._drawPlayerAt(ctx, px, py, this.player.facing, this.frameT * 10);
+        return;
+      } else if (sc.dir === "iris") {
+        // Iris / wipe transition
+        this.drawWorld(ctx);
+        const radius = (1 - sc.progress) * Math.hypot(W, H) * 0.55;
+        ctx.save();
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.rect(0, 0, W, H);
+        ctx.arc(W / 2, H / 2, Math.max(0, radius), 0, Math.PI * 2, true);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+    }
+
     const shakeAmt = this.papacitoT > 0 ? 8 : 0;
     ctx.save();
     if (shakeAmt) ctx.translate((Math.random() - 0.5) * shakeAmt, (Math.random() - 0.5) * shakeAmt * 0.5);
     this.drawWorld(ctx);
     ctx.restore();
-
-    if (this.fade > 0) {
-      ctx.fillStyle = `rgba(0,0,0,${this.fade})`;
-      ctx.fillRect(0, 0, W, H);
-    }
   }
 
   drawTitle(ctx) {
@@ -1080,7 +1305,32 @@ export class Game {
   }
 
   drawWorld(ctx) {
-    const lvl = this.screen;
+    this.drawScreenWorld(ctx, this.screen);
+    this._drawSplats(ctx);
+    this._drawProjectiles(ctx);
+    this._drawPlayer(ctx);
+    this._drawParticles(ctx);
+
+    if (this.papacitoT > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const heat = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 620);
+      heat.addColorStop(0, `rgba(255,200,90,${this.papacitoT * 0.24})`);
+      heat.addColorStop(0.6, `rgba(255,90,20,${this.papacitoT * 0.2})`);
+      heat.addColorStop(1, "rgba(60,0,0,0)");
+      ctx.fillStyle = heat;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.9);
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(1, "rgba(1,2,7,0.55)");
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  drawScreenWorld(ctx, lvl) {
     const bg = this.sheet[lvl.bgKey];
     const t = this.frameT;
     const bgShift = lvl.id === "east" ? -220 : lvl.id === "palace" ? -40 : 0;
@@ -1106,57 +1356,65 @@ export class Game {
     ctx.fillRect(0, 220, W, H - 220);
 
     if (lvl.id === "palace") {
-      ctx.fillStyle = "rgba(28,16,22,0.72)";
+      ctx.fillStyle = "rgba(28,16,22,0.78)";
       ctx.fillRect(70, 200, 820, 300);
       const floor = ctx.createLinearGradient(0, 320, 0, 520);
       floor.addColorStop(0, "#3a241c");
       floor.addColorStop(1, "#1a100e");
       ctx.fillStyle = floor;
       ctx.fillRect(90, 320, 780, 180);
-      ctx.strokeStyle = "rgba(255,200,120,0.08)";
+      
+      // Floor planks
+      ctx.strokeStyle = "rgba(255,200,120,0.12)";
       for (let i = 0; i < 8; i++) {
         ctx.beginPath();
         ctx.moveTo(90, 340 + i * 22);
         ctx.lineTo(870, 340 + i * 22);
         ctx.stroke();
       }
+
+      // Backbar neon protein shake jars
+      this._drawBackbarJars(ctx, t);
     } else {
-      ctx.fillStyle = "rgba(255,224,160,0.05)";
+      ctx.fillStyle = "rgba(255,224,160,0.06)";
       ctx.fillRect(lvl.bounds.x, lvl.bounds.y, lvl.bounds.w, 8);
     }
 
-    this._drawSolids(ctx, t);
-    this._drawSigns(ctx, t);
-    this._drawPalaceDoor(ctx, t);
-    this._drawVelvetDoor(ctx, t);
-    this._drawShakes(ctx, t);
-    this._drawEve(ctx, t);
-    this._drawElon(ctx, t);
-    this._drawProjectiles(ctx);
-    this._drawPlayer(ctx);
-    this._drawParticles(ctx);
-
-    if (this.papacitoT > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      const heat = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 620);
-      heat.addColorStop(0, `rgba(255,200,90,${this.papacitoT * 0.24})`);
-      heat.addColorStop(0.6, `rgba(255,90,20,${this.papacitoT * 0.2})`);
-      heat.addColorStop(1, "rgba(60,0,0,0)");
-      ctx.fillStyle = heat;
-      ctx.fillRect(0, 0, W, H);
-      ctx.restore();
-    }
-
-    const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.9);
-    vig.addColorStop(0, "rgba(0,0,0,0)");
-    vig.addColorStop(1, "rgba(1,2,7,0.55)");
-    ctx.fillStyle = vig;
-    ctx.fillRect(0, 0, W, H);
+    this._drawSolidsForScreen(ctx, lvl);
+    this._drawSignsForScreen(ctx, lvl, t);
+    if (lvl.notes && lvl.notes.palaceDoor) this._drawPalaceDoorForScreen(ctx, lvl.notes.palaceDoor, t);
+    if (lvl.door) this._drawVelvetDoorForScreen(ctx, lvl.door, t);
+    this._drawShakesForScreen(ctx, lvl, t);
+    if (lvl.eve) this._drawEveForScreen(ctx, lvl.eve, t);
+    if (lvl.id === "east" && this.elon) this._drawElon(ctx, t);
   }
 
-  _drawSolids(ctx, t) {
-    for (const pl of this.screen.solids) {
+  _drawBackbarJars(ctx, t) {
+    const jars = [
+      { x: 220, y: 175, col: "#ff6b8b", name: "BERRY" },
+      { x: 340, y: 175, col: "#7ef0c8", name: "MINT" },
+      { x: 560, y: 175, col: "#ffd56c", name: "GOLD" },
+      { x: 680, y: 175, col: "#b46be8", name: "PAPI" },
+    ];
+    for (const j of jars) {
+      ctx.save();
+      ctx.shadowColor = j.col;
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = j.col;
+      roundRectPath(ctx, j.x, j.y, 32, 42, 6);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(j.x + 6, j.y + 12, 20, 16);
+      ctx.fillStyle = "#121820";
+      ctx.font = "bold 8px Trebuchet MS, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(j.name, j.x + 16, j.y + 24);
+      ctx.restore();
+    }
+  }
+
+  _drawSolidsForScreen(ctx, lvl) {
+    for (const pl of lvl.solids) {
       if (pl.kind === "planter") {
         ctx.save();
         ctx.fillStyle = "#2a1810";
@@ -1173,13 +1431,21 @@ export class Game {
         ctx.restore();
       } else if (pl.kind === "bar" || pl.kind === "backbar") {
         const grd = ctx.createLinearGradient(0, pl.y, 0, pl.y + pl.h);
-        grd.addColorStop(0, "#6a3a28");
+        grd.addColorStop(0, "#7a402e");
         grd.addColorStop(1, "#2a1410");
         ctx.fillStyle = grd;
         roundRectPath(ctx, pl.x, pl.y, pl.w, pl.h, 8);
         ctx.fill();
-        ctx.fillStyle = "rgba(255,210,140,0.18)";
+        ctx.fillStyle = "rgba(255,210,140,0.22)";
         ctx.fillRect(pl.x + 8, pl.y + 6, pl.w - 16, 6);
+        
+        // Brass footrail
+        ctx.strokeStyle = "#ffd56c";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(pl.x + 12, pl.y + pl.h - 6);
+        ctx.lineTo(pl.x + pl.w - 12, pl.y + pl.h - 6);
+        ctx.stroke();
       } else if (pl.kind === "palace") {
         ctx.save();
         ctx.fillStyle = "rgba(10,8,16,0.28)";
@@ -1191,8 +1457,8 @@ export class Game {
     }
   }
 
-  _drawSigns(ctx, t) {
-    for (const s of this.screen.signs) {
+  _drawSignsForScreen(ctx, lvl, t) {
+    for (const s of lvl.signs) {
       const sw = 200;
       const sh = 28 + s.lines.length * 20;
       ctx.save();
@@ -1202,15 +1468,15 @@ export class Game {
       ctx.fillStyle = glass;
       roundRectPath(ctx, s.x, s.y, sw, sh, 12);
       ctx.fill();
-      ctx.strokeStyle = this.screen.accent;
+      ctx.strokeStyle = lvl.accent;
       ctx.lineWidth = 2;
-      ctx.shadowColor = this.screen.accent;
+      ctx.shadowColor = lvl.accent;
       ctx.shadowBlur = 16;
       ctx.globalAlpha = 0.8 + Math.sin(t * 8 + s.x) * 0.1;
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
-      ctx.fillStyle = this.screen.accent;
+      ctx.fillStyle = lvl.accent;
       ctx.font = "bold 15px Trebuchet MS, sans-serif";
       ctx.textAlign = "center";
       s.lines.forEach((line, i) => ctx.fillText(line, s.x + sw / 2, s.y + 26 + i * 20));
@@ -1219,9 +1485,7 @@ export class Game {
     }
   }
 
-  _drawPalaceDoor(ctx, t) {
-    const door = this.screen.notes.palaceDoor;
-    if (!door) return;
+  _drawPalaceDoorForScreen(ctx, door, t) {
     ctx.save();
     const glow = 0.35 + Math.sin(t * 3) * 0.1;
     ctx.fillStyle = `rgba(255,200,110,${glow})`;
@@ -1238,9 +1502,7 @@ export class Game {
     ctx.restore();
   }
 
-  _drawVelvetDoor(ctx, t) {
-    const door = this.screen.door;
-    if (!door) return;
+  _drawVelvetDoorForScreen(ctx, door, t) {
     ctx.save();
     ctx.fillStyle = door.unlocked ? "#4a2048" : "#2a1028";
     roundRectPath(ctx, door.x, door.y, door.w, door.h, 8);
@@ -1253,18 +1515,29 @@ export class Game {
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#6b2d8b";
     ctx.fillRect(door.x + 10, door.y + 18, door.w - 20, door.h - 40);
+
     if (!door.unlocked) {
-      ctx.strokeStyle = "#9b1c4a";
+      // Golden Stanchions & Velvet Rope
+      ctx.strokeStyle = "#c41c4a";
       ctx.lineWidth = 6;
       ctx.beginPath();
       ctx.moveTo(door.x - 8, door.y + 70);
       ctx.quadraticCurveTo(door.x + door.w / 2, door.y + 100, door.x + door.w + 8, door.y + 70);
       ctx.stroke();
+
+      // Padlock
       ctx.fillStyle = "#ffd56c";
       ctx.beginPath();
-      ctx.arc(door.x + door.w / 2, door.y + 78, 7, 0, Math.PI * 2);
+      ctx.arc(door.x + door.w / 2, door.y + 78, 8, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = "#2c1c0a";
+      ctx.fillRect(door.x + door.w / 2 - 2, door.y + 76, 4, 6);
+    } else {
+      // Open Portal shimmer
+      ctx.fillStyle = "rgba(126, 240, 200, 0.4)";
+      ctx.fillRect(door.x + 14, door.y + 22, door.w - 28, door.h - 48);
     }
+
     ctx.fillStyle = "#ffd56c";
     ctx.font = "bold 16px Trebuchet MS, sans-serif";
     ctx.textAlign = "center";
@@ -1276,13 +1549,13 @@ export class Game {
     ctx.restore();
   }
 
-  _drawShakes(ctx, t) {
-    for (const s of this.screen.shakes) {
+  _drawShakesForScreen(ctx, lvl, t) {
+    for (const s of lvl.shakes) {
       if (s.taken) continue;
       const y = s.y + Math.sin(s.bob) * 6;
       ctx.save();
       const halo = ctx.createRadialGradient(s.x + s.w / 2, y + s.h / 2, 4, s.x + s.w / 2, y + s.h / 2, 36);
-      halo.addColorStop(0, "rgba(103,255,202,0.28)");
+      halo.addColorStop(0, "rgba(103,255,202,0.32)");
       halo.addColorStop(1, "rgba(103,255,202,0)");
       ctx.fillStyle = halo;
       ctx.fillRect(s.x - 24, y - 24, s.w + 48, s.h + 48);
@@ -1291,10 +1564,8 @@ export class Game {
     }
   }
 
-  _drawEve(ctx, t) {
-    const eve = this.screen.eve;
-    if (!eve) return;
-    const bob = Math.sin(t * 2) * 2;
+  _drawEveForScreen(ctx, eve, t) {
+    const bob = Math.sin(t * 2.5) * 2;
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.4)";
     ctx.beginPath();
@@ -1318,36 +1589,59 @@ export class Game {
     ctx.beginPath();
     ctx.ellipse(e.x + e.w / 2, e.y + e.h + 4, 34, 8, 0, 0, Math.PI * 2);
     ctx.fill();
-    // scooter
-    ctx.fillStyle = "#1a1c22";
+
+    // High-tech cyber scooter
+    ctx.fillStyle = "#1e222a";
     roundRectPath(ctx, e.x + 4, e.y + e.h - 18, e.w - 8, 12, 6);
     ctx.fill();
-    ctx.fillStyle = "#2a2e38";
+    ctx.fillStyle = "#2a303c";
     ctx.beginPath();
     ctx.arc(e.x + 14, e.y + e.h - 2, 8, 0, Math.PI * 2);
     ctx.arc(e.x + e.w - 14, e.y + e.h - 2, 8, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = "#7ec8f0";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(e.x + 14, e.y + e.h - 2, 8, 0, Math.PI * 2);
     ctx.arc(e.x + e.w - 14, e.y + e.h - 2, 8, 0, Math.PI * 2);
     ctx.stroke();
+
     ctx.translate(e.x + e.w / 2, e.y + e.h - 10 + bob);
     ctx.scale(e.facing, 1);
     const img = this.sheet.elon;
     if (img && img.complete) {
       ctx.shadowColor = "#7ec8f0";
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = 18;
       ctx.drawImage(img, -40, -78, 80, 78);
     }
     ctx.restore();
+  }
+
+  _drawSplats(ctx) {
+    if (!this.splats) return;
+    for (const sp of this.splats) {
+      const alpha = Math.min(1, sp.life / (sp.max * 0.5));
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.65;
+      ctx.fillStyle = sp.color;
+      ctx.beginPath();
+      ctx.ellipse(sp.x, sp.y, sp.radius, sp.radius * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   _drawProjectiles(ctx) {
     if (!this.projectiles) return;
     for (const pr of this.projectiles) {
       ctx.save();
+      // Ground shadow
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.beginPath();
+      ctx.ellipse(pr.x + pr.w / 2, pr.y + pr.h / 2, pr.w * 0.45, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Flying eggplant
       ctx.translate(pr.x + pr.w / 2, pr.y + pr.h / 2 - pr.z);
       ctx.rotate(pr.spin);
       ctx.shadowColor = "#b94fe8";
@@ -1361,20 +1655,70 @@ export class Game {
   _drawPlayer(ctx) {
     const p = this.player;
     if (p.inv > 0 && Math.floor(p.inv * 14) % 2) return;
+    this._drawPlayerAt(ctx, p.x, p.y, p.facing, p.anim, p.overheat > 0);
+  }
+
+  _drawPlayerAt(ctx, px, py, facing, anim, overheated = false) {
     const img = this.sheet.bob;
     const dw = 92;
     const dh = 86;
-    const bob = Math.hypot(p.vx, p.vy) > 8 ? Math.abs(Math.sin(p.anim * 12)) * -3 : Math.sin(p.anim * 2) * 1.2;
+    const isMoving = Math.hypot(this.player.vx, this.player.vy) > 8;
+    const bob = isMoving ? Math.abs(Math.sin(anim * 12)) * -3 : Math.sin(anim * 2) * 1.2;
+    const recoilOffset = (this.recoil || 0) * 4;
+
     ctx.save();
+    // Shadow
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
-    ctx.ellipse(p.x + p.w / 2, p.y + p.h + 2, 26, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(px + this.player.w / 2, py + this.player.h + 2, 26, 8, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.translate(p.x + p.w / 2, p.y + p.h + bob);
-    if (p.facing === "w") ctx.scale(-1, 1);
-    ctx.shadowColor = p.overheat > 0 ? "#ff5a3c" : "rgba(255,205,98,0.4)";
+
+    ctx.translate(px + this.player.w / 2, py + this.player.h + bob);
+
+    if (facing === "w") {
+      ctx.scale(-1, 1);
+      ctx.translate(recoilOffset, 0);
+    } else if (facing === "e") {
+      ctx.translate(-recoilOffset, 0);
+    } else if (facing === "n") {
+      ctx.translate(0, recoilOffset);
+    } else if (facing === "s") {
+      ctx.translate(0, -recoilOffset);
+    }
+
+    ctx.shadowColor = overheated ? "#ff5a3c" : "rgba(255,205,98,0.4)";
     ctx.shadowBlur = 14;
-    if (img && img.complete) ctx.drawImage(img, -dw * 0.5, -dh + 6, dw, dh);
+
+    if (img && img.complete) {
+      if (facing === "n") {
+        // Back-view styling filter
+        ctx.save();
+        ctx.filter = "brightness(0.85) contrast(1.1)";
+        ctx.drawImage(img, -dw * 0.5, -dh + 6, dw, dh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, -dw * 0.5, -dh + 6, dw, dh);
+      }
+    }
+
+    // Muzzle flash on gun
+    if (this.muzzleFlash > 0) {
+      const dir = FACE[facing];
+      const fx = dir.x * 32;
+      const fy = -dh * 0.45 + dir.y * 14;
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const flash = ctx.createRadialGradient(fx, fy, 2, fx, fy, 24);
+      flash.addColorStop(0, "rgba(255,240,200,0.9)");
+      flash.addColorStop(0.4, "rgba(220,124,255,0.6)");
+      flash.addColorStop(1, "rgba(140,40,200,0)");
+      ctx.fillStyle = flash;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     ctx.restore();
   }
 
@@ -1388,6 +1732,8 @@ export class Game {
         ctx.fillStyle = pt.color;
         ctx.font = "bold 16px Trebuchet MS, sans-serif";
         ctx.textAlign = "center";
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 4;
         ctx.fillText(pt.text, pt.x, pt.y);
       } else {
         ctx.globalCompositeOperation = "screen";
