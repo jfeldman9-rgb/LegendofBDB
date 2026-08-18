@@ -1,7 +1,7 @@
 {
   "name": "The Legend of Claudia: BDB's Awakening",
   "short_name": "BDB Awakening",
-  "description": "Side-scrolling shooter. Eggplants. Protein. Poor judgment.",
+  "description": "Top-down rescue slice. Eggplants. Protein. Poor judgment.",
   "start_url": "./index.html",
   "display": "fullscreen",
   "orientation": "landscape",

@@ -111,6 +111,88 @@ function drawCrate() {
   return c;
 }
 
+function drawEve() {
+  const { c, g } = canvas(80, 118);
+  // Scoop Eve — bartender, not Claudia. Procedural so we reuse no extra art.
+  g.fillStyle = "#1a1420";
+  g.beginPath();
+  g.ellipse(40, 112, 22, 6, 0, 0, Math.PI * 2);
+  g.fill();
+  // boots / legs
+  g.fillStyle = "#2a2234";
+  g.fillRect(28, 86, 10, 22);
+  g.fillRect(44, 86, 10, 22);
+  // dress / apron
+  const dress = g.createLinearGradient(20, 48, 60, 90);
+  dress.addColorStop(0, "#3d2a22");
+  dress.addColorStop(1, "#1c1410");
+  g.fillStyle = dress;
+  g.beginPath();
+  g.moveTo(22, 52);
+  g.lineTo(58, 52);
+  g.lineTo(62, 90);
+  g.lineTo(18, 90);
+  g.closePath();
+  g.fill();
+  g.fillStyle = "#e8fff6";
+  g.beginPath();
+  g.moveTo(26, 54);
+  g.lineTo(54, 54);
+  g.lineTo(56, 86);
+  g.lineTo(24, 86);
+  g.closePath();
+  g.fill();
+  g.fillStyle = "#148a68";
+  g.fillRect(24, 68, 32, 6);
+  g.fillStyle = "#17352f";
+  g.font = "bold 11px Trebuchet MS, sans-serif";
+  g.textAlign = "center";
+  g.fillText("P", 40, 78);
+  // torso / arms
+  g.fillStyle = "#4a3328";
+  g.fillRect(30, 40, 20, 16);
+  g.fillStyle = "#e6c2a0";
+  g.fillRect(18, 44, 10, 22);
+  g.fillRect(52, 40, 10, 16);
+  // scoop
+  g.fillStyle = "#d8dee8";
+  g.fillRect(58, 28, 4, 28);
+  g.beginPath();
+  g.arc(60, 24, 10, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#7dffc8";
+  g.beginPath();
+  g.arc(60, 24, 7, 0, Math.PI * 2);
+  g.fill();
+  // head
+  g.fillStyle = "#e6c2a0";
+  g.beginPath();
+  g.ellipse(40, 24, 13, 15, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#1a1210";
+  g.beginPath();
+  g.ellipse(40, 16, 14, 12, 0, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.arc(40, 8, 7, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#ffd56c";
+  g.beginPath();
+  g.arc(26, 26, 3, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#2a1a14";
+  g.beginPath();
+  g.arc(35, 24, 1.4, 0, Math.PI * 2);
+  g.arc(45, 24, 1.4, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = "#8a4a40";
+  g.lineWidth = 1.4;
+  g.beginPath();
+  g.arc(40, 30, 4, 0.15, Math.PI - 0.15);
+  g.stroke();
+  return c;
+}
+
 export async function loadSheet() {
   const entries = await Promise.all(
     Object.entries(PATHS).map(async ([k, src]) => [k, await loadImage(src)])
@@ -122,6 +204,7 @@ export async function loadSheet() {
     eggplantBig: drawEggplant(true),
     shake: drawShake(),
     crate: drawCrate(),
+    eve: drawEve(),
     ready: true,
   };
 }
