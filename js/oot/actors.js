@@ -209,34 +209,50 @@ export function makeBDB(faceImg) {
   attachFace(head, faceImg, "bdb");
   hips.add(head);
 
-  const parts = { hips, leftLeg, rightLeg, leftArm, rightArm, head, shadow, gun };
+  const parts = { hips, leftLeg, rightLeg, leftArm, rightArm, head, shadow, gun, tailL, tailR };
 
   function update(dt, state) {
     const moving = state.moving;
     const grounded = state.grounded;
     const lockOn = state.lockOn;
+    const inv = state.inv || 0;
     parts._t = (parts._t || 0) + dt * (moving ? 10 : 2.4);
     const t = parts._t;
+
+    // Flash on hurt / invulnerability
+    if (inv > 0) {
+      root.visible = Math.floor(inv * 18) % 2 === 0;
+    } else {
+      root.visible = true;
+    }
+
     if (grounded && moving) {
       limbSwing(leftLeg, t, 0.7, 0);
       limbSwing(rightLeg, t, 0.7, Math.PI);
       limbSwing(leftArm, t, 0.55, Math.PI);
       limbSwing(rightArm, t, 0.45, 0);
       hips.position.y = 0.92 + Math.abs(Math.sin(t)) * 0.05;
+      tailL.rotation.x = 0.18 + Math.sin(t) * 0.2;
+      tailR.rotation.x = 0.18 + Math.sin(t + Math.PI) * 0.2;
     } else {
       leftLeg.rotation.x *= 0.8;
       rightLeg.rotation.x *= 0.8;
       leftArm.rotation.x *= 0.8;
       rightArm.rotation.x = THREE.MathUtils.lerp(rightArm.rotation.x, lockOn ? -0.35 : 0, 0.15);
       hips.position.y = THREE.MathUtils.lerp(hips.position.y, 0.92, 0.2);
+      tailL.rotation.x = THREE.MathUtils.lerp(tailL.rotation.x, 0.18, 0.1);
+      tailR.rotation.x = THREE.MathUtils.lerp(tailR.rotation.x, 0.18, 0.1);
     }
     if (!grounded) {
       leftLeg.rotation.x = -0.45;
       rightLeg.rotation.x = 0.25;
       leftArm.rotation.x = 0.5;
+      tailL.rotation.x = -0.25;
+      tailR.rotation.x = -0.25;
     }
     shadow.scale.setScalar(grounded ? 1 : 0.7);
     head.rotation.x = lockOn ? -0.08 : Math.sin(t * 0.35) * 0.03;
+    head.rotation.y = lockOn ? 0 : Math.sin(t * 0.2) * 0.05;
   }
 
   return { root, parts, update, height: 1.78, radius: 0.42 };
@@ -289,7 +305,9 @@ export function makeElon(faceImg) {
   lockMark.visible = false;
   root.add(lockMark);
 
-  function update(dt, walking, laughOn) {
+  const parts = { hips, leftLeg, rightLeg, leftArm, rightArm, head, ha, lockMark, shadow: root.children[0] };
+
+  function update(dt, walking, laughOn, hurtTime = 0) {
     this._t = (this._t || 0) + dt * (walking ? 8 : 2);
     const t = this._t;
     if (walking) {
@@ -303,8 +321,12 @@ export function makeElon(faceImg) {
     if (laughOn) {
       ha.position.y = 1.85 + Math.sin(t * 6) * 0.08;
       ha.scale.setScalar(1 + Math.sin(t * 8) * 0.08);
+      head.rotation.x = -0.15 + Math.sin(t * 12) * 0.08;
+    } else {
+      head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, 0, 0.1);
     }
     lockMark.rotation.y += dt * 2.2;
+    lockMark.position.y = 2.15 + Math.sin(t * 4) * 0.08;
   }
 
   return {
@@ -376,7 +398,15 @@ export function makeEve() {
   head.add(earring);
   hips.add(head);
 
-  return { root, radius: 0.4 };
+  function update(dt) {
+    this._t = (this._t || 0) + dt * 2.2;
+    const t = this._t;
+    head.rotation.y = Math.sin(t * 0.5) * 0.12;
+    rightArm.rotation.x = -0.8 + Math.sin(t) * 0.15;
+    whey.position.y = -0.28 + Math.sin(t * 2) * 0.02;
+  }
+
+  return { root, radius: 0.4, update };
 }
 
 export function makeEggplantMesh(scale = 1) {

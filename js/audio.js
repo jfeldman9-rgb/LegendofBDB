@@ -239,20 +239,27 @@ export class AudioBus {
     this._tone(660, 0.06, "sine", 0.05);
   }
 
-  /** Keyboard ocarina-style note for Song of the Scoop. */
+  /** Keyboard ocarina-style note for Song of the Scoop with rich harmonic vibrato */
   songNote(freq) {
     if (!this.sfxOn || !this.ctx) return;
-    this._tone(freq, 0.22, "triangle", 0.11, 18);
-    this._tone(freq * 2, 0.16, "sine", 0.045, 8, this.ctx.currentTime + 0.01);
+    const t = this.ctx.currentTime;
+    this._tone(freq, 0.28, "triangle", 0.12, 14, t);
+    this._tone(freq * 2, 0.2, "sine", 0.05, 6, t + 0.01);
+    this._tone(freq * 3, 0.14, "sine", 0.02, 0, t + 0.02);
   }
 
   songOk() {
-    if (!this.sfxOn) return;
-    [392, 494, 587, 784].forEach((f, i) => this._tone(f, 0.22, "sine", 0.08, 12, this.ctx.currentTime + i * 0.07));
+    if (!this.sfxOn || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    [392, 494, 587, 784, 988].forEach((f, i) => {
+      this._tone(f, 0.35, "sine", 0.09, 10, t + i * 0.08);
+      this._tone(f * 0.5, 0.28, "triangle", 0.05, 5, t + i * 0.08);
+    });
   }
 
   songFail() {
-    if (!this.sfxOn) return;
-    this._tone(180, 0.16, "square", 0.07, -40);
+    if (!this.sfxOn || !this.ctx) return;
+    this._tone(180, 0.2, "sawtooth", 0.09, -60);
+    this._tone(140, 0.25, "square", 0.07, -40, this.ctx.currentTime + 0.04);
   }
 }

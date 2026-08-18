@@ -801,7 +801,10 @@ button:active:not(:disabled) {
 .song-staff i.hit {
   border-color: var(--gold);
   color: var(--gold);
-  background: rgba(255, 213, 108, 0.12);
+  background: rgba(255, 213, 108, 0.18);
+  box-shadow: 0 0 16px rgba(255, 213, 108, 0.6);
+  transform: scale(1.08);
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
 }
 
 .song-hint {

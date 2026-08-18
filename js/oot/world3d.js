@@ -413,7 +413,12 @@ export function buildWorld(scene) {
     makeLamp(72, -8),
     makeLamp(72, 8),
   ];
-  for (const l of lamps) {
+  // Additional Boulevard streetlights and ambient atmospheric lanterns
+  for (const [lx, lz] of [
+    [40, 0],
+    [60, -4],
+  ]) {
+    const l = makeLamp(lx, lz);
     props.add(l.group);
     colliders.push(l.collider);
   }
@@ -465,6 +470,19 @@ export function buildWorld(scene) {
   props.add(gate.group);
   colliders.push(gate.collider, ...gate.wallColliders);
 
+  // Collectible protein shakes in the field
+  const shakes = [];
+  const shakePositions = [
+    { x: 30, z: 8 },
+    { x: 50, z: -14 },
+    { x: 68, z: 12 },
+  ];
+  for (const pos of shakePositions) {
+    const s = makeWorldShake(pos.x, pos.z);
+    props.add(s.group);
+    shakes.push(s);
+  }
+
   return {
     colliders,
     spawn: LAYOUT.spawn,
@@ -474,6 +492,38 @@ export function buildWorld(scene) {
     fountain: { x: LAYOUT.fountain.x, z: LAYOUT.fountain.z, r: 2.1 },
     elonHome: LAYOUT.elon,
     gate,
+    shakes,
+  };
+}
+
+function makeWorldShake(x, z) {
+  const g = new THREE.Group();
+  addCyl(g, 0.16, 0.14, 0.44, 0x7dffc8, 0, 0.22, 0, { emissive: 0x148a68, emissiveIntensity: 0.5 });
+  addCyl(g, 0.11, 0.11, 0.12, 0x1a2230, 0, 0.5, 0);
+  addBox(g, 0.18, 0.08, 0.18, 0xfff3b0, 0, 0.28, 0);
+  const glow = new THREE.PointLight(0x7ef0c8, 1.2, 5, 2);
+  glow.position.set(0, 0.4, 0);
+  g.add(glow);
+
+  const aura = new THREE.Mesh(
+    new THREE.SphereGeometry(0.32, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0x7ef0c8, transparent: true, opacity: 0.25, depthWrite: false })
+  );
+  aura.position.y = 0.28;
+  g.add(aura);
+
+  g.position.set(x, 0.35, z);
+  return {
+    group: g,
+    x,
+    z,
+    taken: false,
+    update(dt, t) {
+      if (this.taken) return;
+      g.rotation.y += dt * 2.2;
+      g.position.y = 0.35 + Math.sin(t * 3.5 + x) * 0.12;
+      aura.scale.setScalar(1 + Math.sin(t * 5) * 0.15);
+    },
   };
 }
 

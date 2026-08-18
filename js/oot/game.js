@@ -17,6 +17,7 @@ import { Input } from "./input.js";
 import { makeBDB, makeElon, makeEve, makeEggplantMesh, loadImage } from "./actors.js";
 import { buildWorld } from "./world3d.js";
 import { SONG_OF_THE_SCOOP, NOTE_FREQ, NOTE_GLYPH, feedNote } from "./song.js";
+import { ParticleSystem } from "./particles.js";
 
 function loadSave() {
   try {
@@ -57,8 +58,12 @@ export class Game {
     this.gateOpenT = 0;
     this.promptKind = null;
     this.queuedTalk = null;
+    this.camShake = { x: 0, y: 0, t: 0, amp: 0 };
+    this.fountainMoteT = 0;
+    this.stepDustT = 0;
 
     this._setupThree();
+    this.particles = new ParticleSystem(this.scene);
     this.world = buildWorld(this.scene);
     if (this.save.fieldOpen) this._setGateOpen(true, true);
     this._spawnActors();
@@ -335,9 +340,17 @@ export class Game {
     this.needScoop = false;
     this.fieldLooked = false;
     this.lockOn = false;
+    this.papiOpened = false;
     this._clearProjectiles();
+    if (this.particles) this.particles.clear();
     this._resetPlayer(this.world.spawn);
     this._resetElon();
+    if (this.world.shakes) {
+      this.world.shakes.forEach((s) => {
+        s.taken = false;
+        s.group.visible = true;
+      });
+    }
     if (this.save.fieldOpen) this._setGateOpen(true, true);
     else this._setGateOpen(false, true);
     this.mode = "playing";
@@ -425,6 +438,14 @@ export class Game {
       this.cam.yaw += dt * 0.12;
       this._placeTitleCamera();
       this.hero.update(dt, { moving: false, grounded: true, lockOn: false });
+      if (this.particles) {
+        this.particles.update(dt);
+        this.fountainMoteT += dt;
+        if (this.fountainMoteT > 0.18) {
+          this.fountainMoteT = 0;
+          this.particles.emitFountainMote(this.world.fountain.x, this.world.fountain.z);
+        }
+      }
       return;
     }
     if (this.mode === "cine") {
@@ -483,11 +504,86 @@ export class Game {
     this._combat(dt);
     this._updateElon(dt);
     this._updateProjectiles(dt);
+    this._updateWorldShakes(dt);
     this._interactPrompts();
     this._maybeFieldLook();
+    this._updateAmbientVFX(dt);
     this._updateCamera(dt);
-    this.hero.update(dt, { moving: p.moving, grounded: p.grounded, lockOn: this.lockOn });
+    this.hero.update(dt, { moving: p.moving, grounded: p.grounded, lockOn: this.lockOn, inv: p.inv });
+    if (this.eve && this.eve.update) this.eve.update(dt);
+    if (this.particles) this.particles.update(dt);
+    this._updateCameraShake(dt);
     this.syncHUD();
+  }
+
+  _updateCameraShake(dt) {
+    if (this.camShake.t > 0) {
+      this.camShake.t -= dt;
+      const progress = this.camShake.t / this.camShake.maxT;
+      const amp = this.camShake.amp * progress;
+      this.camShake.x = (Math.random() - 0.5) * amp;
+      this.camShake.y = (Math.random() - 0.5) * amp;
+    } else {
+      this.camShake.x = 0;
+      this.camShake.y = 0;
+    }
+  }
+
+  shakeCamera(amp = 0.35, dur = 0.3) {
+    this.camShake = {
+      x: 0,
+      y: 0,
+      t: dur,
+      maxT: dur,
+      amp,
+    };
+  }
+
+  _updateAmbientVFX(dt) {
+    // Fountain ambient whey motes
+    this.fountainMoteT += dt;
+    if (this.fountainMoteT > 0.18) {
+      this.fountainMoteT = 0;
+      if (this.particles && this.world.fountain) {
+        this.particles.emitFountainMote(this.world.fountain.x, this.world.fountain.z);
+      }
+    }
+
+    // Footstep dust when running
+    const p = this.player;
+    if (p.moving && p.grounded) {
+      this.stepDustT += dt;
+      if (this.stepDustT > 0.22) {
+        this.stepDustT = 0;
+        const color = zoneAt(p.x, p.z) === "field" ? 0x6a804a : 0xb8a880;
+        this.particles.emitDust(p.x, p.y, p.z, 2, color);
+      }
+    }
+  }
+
+  _updateWorldShakes(dt) {
+    if (!this.world.shakes) return;
+    const t = performance.now() * 0.001;
+    const p = this.player;
+    for (const s of this.world.shakes) {
+      s.update(dt, t);
+      if (!s.taken && nearPoint(p.x, p.z, s.x, s.z, 1.25) && this.save.fieldOpen) {
+        s.taken = true;
+        s.group.visible = false;
+        this.shakeN++;
+        this.save.whey++;
+        writeSave(this.save);
+        this.audio.pickup();
+        this.particles.emitBurst(s.x, 0.8, s.z, 0x7ef0c8, 14);
+        this.toast(`PROTEIN COLLECTED (+1)`);
+        if (this.shakeN >= 3) {
+          this.charges = Math.min(2, this.charges + 1);
+          this.shakeN = 0;
+          this.toast("PAPACITO SUPER CHARGED (TAP P / ENTER)");
+        }
+        this.syncHUD();
+      }
+    }
   }
 
   _updatePapiHold(dt) {
@@ -571,10 +667,14 @@ export class Game {
       p.vy = 7.6;
       p.grounded = false;
       this.audio.jump();
+      if (this.particles) this.particles.emitDust(p.x, p.y, p.z, 5, 0xd0c090);
     }
     p.vy -= 22 * dt;
     p.y += p.vy * dt;
     if (p.y <= 0) {
+      if (!p.grounded && p.vy < -2) {
+        if (this.particles) this.particles.emitDust(p.x, 0, p.z, 6, 0xb0a080);
+      }
       p.y = 0;
       p.vy = 0;
       p.grounded = true;
@@ -620,11 +720,15 @@ export class Game {
       vz: dirZ * 16,
       life: 1.45,
     });
+    if (this.particles) {
+      this.particles.emitDust(ox, oy, oz, 3, 0xb46be8);
+    }
     p.heat = Math.min(1, p.heat + 0.22);
     if (p.heat >= 1) {
       p.overheat = 1.15;
       p.heat = 0;
       this.toast("CANNON OVERHEATED — LET THE PRODUCE BREATHE");
+      if (this.particles) this.particles.emitDust(ox, oy, oz, 8, 0xff5a3c);
     }
     this.audio.shoot(false);
   }
@@ -638,16 +742,27 @@ export class Game {
       pr.life -= dt;
       pr.mesh.position.set(pr.x, pr.y, pr.z);
       pr.mesh.rotation.z += dt * 10;
+
+      // Particle smoke trail behind flying eggplant
+      if (this.particles && Math.random() > 0.3) {
+        this.particles.emitProduceTrail(pr.x, pr.y, pr.z);
+      }
+
       if (pr.y < 0.12) {
+        if (this.particles) this.particles.emitBurst(pr.x, 0.1, pr.z, 0x8b2fc0, 8);
         pr.life = 0;
       }
       if (this.elon && this.elon.alive && nearPoint(pr.x, pr.z, this.elon.x, this.elon.z, 0.7) && pr.y < 1.8) {
         this.killElon();
+        if (this.particles) this.particles.emitBurst(pr.x, pr.y, pr.z, 0xffaa00, 18);
         pr.life = 0;
       }
       for (const s of this.world.colliders) {
         if (s.disabled || pr.life <= 0) continue;
-        if (segmentHitsAABB(pr.x, pr.z, pr.x, pr.z, s, 0.18) && pr.y < 3.2) pr.life = 0;
+        if (segmentHitsAABB(pr.x, pr.z, pr.x, pr.z, s, 0.18) && pr.y < 3.2) {
+          if (this.particles) this.particles.emitBurst(pr.x, pr.y, pr.z, 0x8b2fc0, 8);
+          pr.life = 0;
+        }
       }
     }
     this.projectiles = this.projectiles.filter((pr) => {
@@ -719,6 +834,11 @@ export class Game {
     this.kills++;
     this.score += 200;
     this.audio.hit();
+    this.shakeCamera(0.4, 0.35);
+    if (this.particles) {
+      this.particles.emitBurst(e.x, 1.0, e.z, 0xffd56c, 24);
+      this.particles.emitShockwave(e.x, 0.1, e.z, 0.4, 6.0, 0xff8820);
+    }
     if (this.mode === "papacito") this.queuedTalk = LINES.elonDeath;
     else this.startTalk(LINES.elonDeath);
   }
@@ -728,6 +848,10 @@ export class Game {
     p.hearts -= 1;
     p.inv = 1.15;
     this.audio.hurt();
+    this.shakeCamera(0.5, 0.4);
+    if (this.particles) {
+      this.particles.emitBurst(p.x, p.y + 1.0, p.z, 0xff3b5c, 16);
+    }
     this.syncHUD();
     if (p.hearts <= 0) this.die();
   }
@@ -869,6 +993,9 @@ export class Game {
     const note = this.input.noteJust();
     if (!note) return;
     this.audio.songNote(NOTE_FREQ[note]);
+    if (this.particles) {
+      this.particles.emitMusicNotes(this.player.x, this.player.y, this.player.z);
+    }
     const r = feedNote(this.song.played, SONG_OF_THE_SCOOP.notes, note);
     this.song.played = r.played;
     this._renderSong();
@@ -879,6 +1006,12 @@ export class Game {
   _finishScoop() {
     this.audio.songOk();
     this.closeSong();
+    if (this.particles) {
+      for (let i = 0; i < 6; i++) {
+        this.particles.emitMusicNotes(this.player.x, this.player.y + i * 0.2, this.player.z);
+      }
+      this.particles.emitShockwave(this.player.x, 0.1, this.player.z, 0.5, 8.0, 0x7ef0c8);
+    }
     const firstTime = this.needScoop || !this.save.palaceTalk;
     this.needScoop = false;
     this._setGateOpen(true, false);
@@ -895,6 +1028,10 @@ export class Game {
     this.player.checkpoint = { x: LAYOUT.fountain.x, z: LAYOUT.fountain.z + 2.4 };
     this.player.hearts = 3;
     this.audio.checkpoint();
+    if (this.particles) {
+      this.particles.emitBurst(LAYOUT.fountain.x, 1.4, LAYOUT.fountain.z, 0x7ef0c8, 20);
+      this.particles.emitShockwave(LAYOUT.fountain.x, 0.1, LAYOUT.fountain.z, 0.5, 5.0, 0x7ef0c8);
+    }
     writeSave(this.save);
     if (toastOn) this.toast(CHECKPOINT_TOAST);
     this.syncHUD();
@@ -911,6 +1048,11 @@ export class Game {
     this.papacitoT = 1.85;
     this.ui.papFlash.classList.add("show");
     this.audio.papacito();
+    this.shakeCamera(0.8, 1.2);
+    if (this.particles) {
+      this.particles.emitBurst(this.player.x, 1.5, this.player.z, 0xffd56c, 36);
+      this.particles.emitShockwave(this.player.x, 0.2, this.player.z, 1.0, 16.0, 0xff3b5c);
+    }
     this.toast("PAPACITO PROTOCOL");
     this.banner("PAPACITO", 1.5);
     if (this.elon && this.elon.alive) this.killElon();
@@ -1040,24 +1182,29 @@ export class Game {
     this.camera.lookAt(t.x, 1.4, t.z);
   }
 
-  _updateCamera() {
+  _updateCamera(dt) {
     const p = this.player;
     const head = new THREE.Vector3(p.x, p.y + 1.35, p.z);
     if (this.lockOn && this.elon && this.elon.alive) {
       const dx = this.elon.x - p.x;
       const dz = this.elon.z - p.z;
-      this.cam.yaw = Math.atan2(-dx, -dz);
-      this.cam.pitch = 0.22;
+      const targetYaw = Math.atan2(-dx, -dz);
+      // Smooth lerp to locked target
+      let diff = targetYaw - this.cam.yaw;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      this.cam.yaw += diff * 0.18;
+      this.cam.pitch = THREE.MathUtils.lerp(this.cam.pitch, 0.22, 0.15);
     }
     const dist = this.cam.dist;
     const cp = Math.cos(this.cam.pitch);
-    const ox = Math.sin(this.cam.yaw) * dist * cp;
-    const oy = Math.sin(this.cam.pitch) * dist + 0.35;
+    const ox = Math.sin(this.cam.yaw) * dist * cp + (this.camShake ? this.camShake.x : 0);
+    const oy = Math.sin(this.cam.pitch) * dist + 0.35 + (this.camShake ? this.camShake.y : 0);
     const oz = Math.cos(this.cam.yaw) * dist * cp;
     this.camera.position.set(head.x + ox, head.y + oy, head.z + oz);
     const look = head.clone();
     if (this.lockOn && this.elon && this.elon.alive) {
-      look.lerp(new THREE.Vector3(this.elon.x, 1.2, this.elon.z), 0.22);
+      look.lerp(new THREE.Vector3(this.elon.x, 1.2, this.elon.z), 0.28);
     }
     this.camera.lookAt(look);
     this._placeReticle();

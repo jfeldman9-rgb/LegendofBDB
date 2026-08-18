@@ -39,11 +39,18 @@ Touch/mobile pad is secondary.
 
 ### HUD / save
 
-Big Dick Bob, hearts, protein, Papacito charges, Street Produce heat, score.
+Big Dick Bob, hearts, protein, Papacito charges, Street Produce heat, score. Collectible glowing protein shakes in the field charge the Papacito protocol.
 
 Death: **PAPI HAS LEFT THE CHAT** / **Tuxedo damaged. Ego intact.** — retry fountain checkpoint after the song.
 
 `localStorage` key `bdb-awakening-oot-3d-v1` persists song learned / field open.
+
+## Enhancements in this build
+- **3D Particle System**: Footfall dust, jump impact poofs, eggplant produce smoke trails, fountain mystical whey motes, musical notes floating during song playing, and expanding shockwave rings on impacts.
+- **Dynamic Camera Feel**: Screen shake on combat hits and Papacito blasts, smooth lerping on lock-on targeting, and ambient title orbiting.
+- **Enhanced Character Rigging & Animation**: Tuxedo tail flapping, hurt invulnerability flash, head tracking, Scoop Eve idle animation, and laughing Elon scooter reactions.
+- **Field Protein Pickups**: Floating, rotating 3D protein shake pickups scattered across the Boulevard field to charge Papacito Protocol.
+- **Rich Audio Synthesis**: Upgraded harmonic ocarina note frequencies and chime chords for the Song of the Scoop.
 
 ## Assets
 
