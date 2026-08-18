@@ -12,7 +12,7 @@
     <meta name="theme-color" content="#07090f" />
     <meta
       name="description"
-      content="The Legend of Claudia: BDB's Awakening — side-scrolling shooter. Eggplants. Protein. Poor judgment."
+      content="The Legend of Claudia: BDB's Awakening — top-down rescue slice. Eggplants. Protein. Poor judgment."
     />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" />
@@ -37,6 +37,7 @@
               <div class="hearts" id="hearts" aria-label="hearts"></div>
               <div class="protein-track" id="protein" title="Protein toward Papacito"></div>
               <div class="papi-charges" id="charges" title="Papacito charges"></div>
+              <div class="heat-track" id="heat" title="Street Produce heat"></div>
             </div>
             <div class="hud-panel center">
               <b id="zone-name">BOULEVARD OF BAD DECISIONS</b>
@@ -52,6 +53,13 @@
           <button id="btn-sfx" aria-label="Toggle SFX">FX</button>
         </div>
 
+        <div class="talk" id="talk" hidden>
+          <div class="talk-card">
+            <div class="talk-who" id="talk-who"></div>
+            <p class="talk-line" id="talk-line"></p>
+            <div class="talk-next">SPACE / ENTER / TAP</div>
+          </div>
+        </div>
         <div class="toast" id="toast"></div>
         <div class="banner" id="banner">
           <div class="eyebrow">NOW ENTERING</div>
@@ -88,20 +96,21 @@
                 </label>
               </div>
               <p class="foot-note">Headphones encouraged · Poor judgment mandatory · HD cinematic build</p>
+              <p class="disclaimer">Private parody. Not affiliated with Nintendo, The Legend of Zelda, or any public figures depicted.</p>
             </div>
 
             <div data-panel="how" hidden>
               <div class="tag">TACTICAL PRODUCE MANUAL</div>
               <h1 style="font-size: 28px">How to wake BDB</h1>
               <div class="how-grid">
-                <div><b>MOVE</b><span>A / D or arrows · touch pad</span></div>
-                <div><b>JUMP</b><span>Space / W · variable height</span></div>
-                <div><b>EGGPLANT CANNON</b><span>J or FIRE · tap rapid · hold 0.35s charge</span></div>
-                <div><b>AIR DASH</b><span>Shift or DASH</span></div>
-                <div><b>PROTEIN</b><span>Every 3 shakes = 1 Papacito charge</span></div>
-                <div><b>PAPACITO</b><span>K or PAPI · incinerates on-screen yettis · Elon laughs</span></div>
+                <div><b>MOVE</b><span>WASD or arrows · 4-way d-pad</span></div>
+                <div><b>STREET PRODUCE</b><span>J, SPACE, or FIRE · single shot, slight arc · overheats if mashed</span></div>
+                <div><b>TALK</b><span>SPACE / ENTER / tap the box</span></div>
+                <div><b>PAPACITO</b><span>K or PAPI · the button stays sacred</span></div>
+                <div><b>PAUSE / AUDIO</b><span>P or Esc · ♫ music · FX sfx</span></div>
+                <div><b>GOAL</b><span>B-HUB → Palace talk with Eve → velvet D1 door unlocks on B-EAST</span></div>
               </div>
-              <p class="foot-note">Goal: blast through winged yettis yelling “Turn Back Papi!” and free black-haired Princess Claudia.</p>
+              <p class="foot-note">No sword. No D1 interior in this slice. Claudia is still in 3B.</p>
               <div class="btn-row" style="position:sticky;bottom:0;padding-top:8px;background:rgba(8,10,18,.95)">
                 <button class="primary" data-back>BACK</button>
               </div>
@@ -143,19 +152,21 @@
         <div class="controls" aria-label="Touch controls">
           <div class="dpad">
             <div class="spacer"></div>
-            <div class="spacer"></div>
+            <button class="ctrl" id="ctrl-up" aria-label="Up">▲</button>
             <div class="spacer"></div>
             <button class="ctrl" id="ctrl-left" aria-label="Left">◀</button>
             <div class="spacer"></div>
             <button class="ctrl" id="ctrl-right" aria-label="Right">▶</button>
+            <div class="spacer"></div>
+            <button class="ctrl" id="ctrl-down" aria-label="Down">▼</button>
+            <div class="spacer"></div>
           </div>
           <div class="actions">
             <button class="ctrl papi" id="ctrl-papi" aria-label="Papacito">PAPI</button>
-            <button class="ctrl wide" id="ctrl-dash" aria-label="Dash">DASH</button>
-            <button class="ctrl jump wide" id="ctrl-jump" aria-label="Jump">JUMP</button>
             <button class="ctrl fire" id="ctrl-fire" aria-label="Fire">FIRE</button>
           </div>
         </div>
+        <footer class="disclaimer stage-foot">Private parody. Not affiliated with Nintendo, The Legend of Zelda, or any public figures depicted.</footer>
       </div>
     </div>
 

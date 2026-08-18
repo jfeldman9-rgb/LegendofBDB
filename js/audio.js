@@ -193,6 +193,25 @@ export class AudioBus {
     this._tone(160, 0.18, "sawtooth", 0.1, 80, t + 0.24);
     this._tone(280, 0.2, "triangle", 0.07, -60, t + 0.4);
   }
+  /** Elon scooter cackle — if this is silent, the pest is broken. */
+  laugh() {
+    if (!this.sfxOn || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const beats = [
+      [420, 0.0, 0.12],
+      [360, 0.1, 0.1],
+      [480, 0.2, 0.14],
+      [300, 0.34, 0.1],
+      [520, 0.46, 0.16],
+      [340, 0.62, 0.12],
+      [400, 0.76, 0.1],
+    ];
+    beats.forEach(([f, when, dur]) => {
+      this._tone(f, dur, "square", 0.13, -80, t + when);
+      this._tone(f * 0.5, dur * 0.8, "sawtooth", 0.05, -20, t + when);
+      this._noise(dur * 0.55, 0.045, t + when, "bandpass", 1600);
+    });
+  }
   papacito() {
     if (!this.sfxOn || !this.ctx) return;
     this.duck();
