@@ -71,6 +71,14 @@ export class Game {
     this.fadeDir = 0;
     this.pendingScreen = null;
     this.elon = null;
+    this.queuedTalk = null;
+    this.projectiles = [];
+    this.particles = [];
+    this.score = 0;
+    this.kills = 0;
+    this.shakesGot = 0;
+    this.shakeN = 0;
+    this.charges = 0;
     this.screen = buildScreen("hub", this.save);
     this._bindUI();
     this._bindInput();
@@ -938,6 +946,7 @@ export class Game {
     this.burst(p.x + p.w / 2, p.y + p.h / 2, "#ff5b6e", 14);
     if (p.hearts <= 0) {
       this.mode = "dead";
+      this.hideTalk();
       this.openModal(pick(DEATH_TITLES), "Retry the last checkpoint.", [
         [
           "RETRY CHECKPOINT",
@@ -998,8 +1007,12 @@ export class Game {
     ctx.clearRect(0, 0, W, H);
     this.frameT = (this.frameT || 0) + 1 / 60;
 
-    if (this.mode === "title") {
-      this.drawTitle(ctx);
+    if (this.mode === "title" || this.mode === "cine") {
+      if (this.mode === "title") this.drawTitle(ctx);
+      else {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+      }
       return;
     }
 
@@ -1332,6 +1345,7 @@ export class Game {
   }
 
   _drawProjectiles(ctx) {
+    if (!this.projectiles) return;
     for (const pr of this.projectiles) {
       ctx.save();
       ctx.translate(pr.x + pr.w / 2, pr.y + pr.h / 2 - pr.z);
@@ -1365,6 +1379,7 @@ export class Game {
   }
 
   _drawParticles(ctx) {
+    if (!this.particles) return;
     for (const pt of this.particles) {
       const a = pt.life / pt.max;
       ctx.save();

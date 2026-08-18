@@ -52,6 +52,17 @@ assert(hitZone(atPalace, hub.exits)?.to === "palace", "player can enter palace d
 const south = { x: 470, y: 460, w: 42, h: 52 };
 assert(hitZone(south, palace.exits)?.to === "hub", "player can leave palace");
 
+function spawnBox(spawn) {
+  return { x: spawn.x, y: spawn.y, w: 42, h: 52 };
+}
+for (const screen of [hub, eastLocked, palace]) {
+  for (const ex of screen.exits) {
+    const dest = buildScreen(ex.to, { doorUnlocked: true });
+    const landed = spawnBox(ex.spawn);
+    assert(!hitZone(landed, dest.exits), `${screen.id} → ${ex.to} spawn must not sit in an exit`);
+  }
+}
+
 const elon = makeElon(eastLocked);
 assert(elon.hp === 1 && elon.alive, "elon 1 HP");
 

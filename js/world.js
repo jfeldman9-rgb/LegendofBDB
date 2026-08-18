@@ -104,7 +104,7 @@ function screenEast(doorUnlocked) {
       solid(640, 262, 48, 36, "planter"),
       solid(868, 210, 86, 48, "lintel"),
     ],
-    exits: [zone("to-hub", 20, 260, 40, 220, { to: "hub", spawn: { x: 820, y: 350 } })],
+    exits: [zone("to-hub", 20, 260, 40, 220, { to: "hub", spawn: { x: 740, y: 350 } })],
     door: {
       x: 878,
       y: 258,
