@@ -374,6 +374,15 @@ canvas#game {
   margin: 8px 0 4px;
 }
 
+.menu-card .hero-credit {
+  text-align: center;
+  color: var(--gold);
+  letter-spacing: 0.14em;
+  font-size: 13px;
+  margin: 8px 0 6px;
+  font-family: var(--font-display);
+}
+
 .menu-card .tag {
   text-align: center;
   color: var(--mint);
@@ -514,8 +523,8 @@ button:active:not(:disabled) {
 
 .actions {
   display: grid;
-  grid-template-columns: 64px;
-  grid-template-rows: 54px 64px;
+  grid-template-columns: 64px 64px;
+  grid-auto-rows: 48px;
   gap: 6px;
   justify-items: end;
 }
@@ -685,4 +694,118 @@ button:active:not(:disabled) {
 }
 .cine-ui .ghost {
   background: rgba(8, 10, 18, 0.72);
+}
+
+.prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  background: rgba(8, 10, 18, 0.78);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 18;
+  white-space: nowrap;
+}
+
+.prompt.show {
+  opacity: 1;
+}
+
+.lock-reticle {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 2px solid var(--gold);
+  transform: rotate(45deg);
+  pointer-events: none;
+  display: none;
+  z-index: 16;
+  box-shadow: 0 0 12px rgba(255, 213, 108, 0.45);
+}
+
+.lock-reticle.show {
+  display: block;
+}
+
+.song-screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 6, 14, 0.55);
+  z-index: 34;
+  pointer-events: none;
+}
+
+.song-screen.show {
+  display: flex;
+}
+
+.song-card {
+  width: min(420px, 90%);
+  background: linear-gradient(165deg, rgba(20, 24, 40, 0.94), rgba(8, 10, 18, 0.94));
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  padding: 16px 18px 14px;
+  text-align: center;
+}
+
+.song-card .eyebrow {
+  color: var(--mint);
+  letter-spacing: 0.16em;
+  font-size: 11px;
+}
+
+.song-card h2 {
+  margin: 6px 0 12px;
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+
+.song-staff {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+}
+
+.song-staff i {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 213, 108, 0.35);
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 20px;
+  color: #c8d0e8;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.song-staff i.next {
+  border-color: var(--mint);
+  color: var(--mint);
+  box-shadow: 0 0 12px rgba(126, 240, 200, 0.35);
+}
+
+.song-staff i.hit {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(255, 213, 108, 0.12);
+}
+
+.song-hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 11px;
 }

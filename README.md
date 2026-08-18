@@ -1,6 +1,8 @@
 # The Legend of Claudia: BDB's Awakening
 
-Private parody. Vertical slice **M0–M3** — a playable top-down overworld on the Boulevard of Bad Decisions. Eggplant gun. No sword.
+Private parody. Vertical slice **M0–M3** — a playable **third-person 3D** overworld. Eggplant gun. No sword. No Nintendo names on the title.
+
+Hero credit: **Big Dick Bob**.
 
 ## Play
 
@@ -8,38 +10,41 @@ Open `index.html` in a modern browser, or the GitHub Pages site:
 
 **https://jfeldman9-rgb.github.io/LegendofBDB/**
 
-Static site at the repository root. No build step. Keep `index.html` + `.nojekyll`.
+Static site at the repository root. No build step. No Node server. Keep `index.html` + `.nojekyll`. Three.js is vendored at `vendor/three.module.min.js` via importmap.
 
 ### How to play this slice
 
-1. **M0 Title** — Tagline *PROTEIN. PRODUCE. POOR JUDGMENT.* Hit **START RESCUE**.
-2. **M1 Opening** — The existing 15s `assets/video/opening.mp4` plays. **SKIP** is available. Then you drop on **B-HUB**.
-3. **M2 B-EAST** — Walk east from the plaza. Aim with movement, fire Street Produce (J / Space / FIRE). One laughing Elon pest on a scooter (1 HP). Locked velvet **D1** door on the east edge. Walk west to return.
-4. **M3 Palace talk** — From B-HUB, walk into Protein Palace (west / glowing ENTER). Finish Eve's three lines. The B-EAST door unlocks. Toast: `CHECKPOINT: EGO INTACT`.
+1. **M0 Title** — *THE LEGEND OF CLAUDIA / BDB'S AWAKENING*, starring **Big Dick Bob**. Tagline *PROTEIN. PRODUCE. POOR JUDGMENT.* Hit **START RESCUE**.
+2. **Opening** — Existing `assets/video/opening.mp4` plays. **SKIP** is available. Then you spawn in the **Protein Palace plaza**.
+3. **M2 Field look** — From the courtyard, look east at the gated Boulevard. BDB: *"Boulevard of Bad Decisions. Home court."*
+4. **M3 Palace + Song of the Scoop** — Walk up to Scoop Eve, press **K**. After her lesson, **HOLD Papacito** (P / Enter) and play **Song of the Scoop** (`▼ ▲ ▼ ▲ ▶` with WASD or arrows). Atlas checkpoints. The **field gate opens**. Soft-save at the shake fountain.
+5. **Boulevard field** — Open 3D ground, sky, buildings. One laughing Elon (1 HP). Lock-on, jump, shoot Street Produce. Locked velvet D1 door is visible — no dungeon interior.
 
-Not in this slice: D1 dungeon interior, Warthog, Celestial.
+Not in this slice: D1, Warthog, Celestial.
 
-### Controls
+### Keyboard (primary)
 
-| Action | Desktop | Touch |
-| --- | --- | --- |
-| Move | WASD / arrows | 4-way pad |
-| Street Produce | J or Space | FIRE |
-| Papacito (button stays) | K | PAPI |
-| Talk advance | Space / Enter | tap the box |
-| Pause | P / Esc | Ⅱ |
-| Music / SFX | ♫ / FX | ♫ / FX |
+| Action | Keys |
+| --- | --- |
+| Move (camera-relative) | WASD / arrows |
+| Orbit camera | Mouse drag · Q / E · wheel zoom |
+| Jump | Space |
+| Z-target / lock-on | Shift or F |
+| Street Produce (eggplant) | J or Ctrl |
+| Interact / talk | K or E |
+| Papacito (one button, two jobs) | **P or Enter** — **hold** = song menu · **tap** = protocol (stubbed without shakes) |
+| Pause | Esc |
 
-Landscape only. Rotate-phone blocker stays.
+Touch/mobile pad is secondary.
 
 ### HUD / save
 
-BDB, hearts, protein, Papacito charges, score. Zone name: **BOULEVARD OF BAD DECISIONS**.
+Big Dick Bob, hearts, protein, Papacito charges, Street Produce heat, score.
 
-Death: **PAPI HAS LEFT THE CHAT** / **Tuxedo damaged. Ego intact.** — retry checkpoint.
+Death: **PAPI HAS LEFT THE CHAT** / **Tuxedo damaged. Ego intact.** — retry fountain checkpoint after the song.
 
-`localStorage` key `bdb-awakening-zelda-m0m3-v1` persists that the Palace talk happened (velvet door unlocked).
+`localStorage` key `bdb-awakening-oot-3d-v1` persists song learned / field open.
 
 ## Assets
 
-Reuses existing sprites, backgrounds, `assets/audio/bdb-rise.mp3`, `opening.mp4`, `closing.mp4`, and Elon art. No paid downloads. No external TTS.
+Reuses existing sprites, backgrounds, `assets/audio/bdb-rise.mp3`, `opening.mp4`, `closing.mp4`, and Elon/BDB art as 3D face textures. No paid downloads. No TTS. No Nintendo models, maps, music, or textures.

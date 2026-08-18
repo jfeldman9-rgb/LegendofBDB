@@ -12,35 +12,44 @@
     <meta name="theme-color" content="#07090f" />
     <meta
       name="description"
-      content="The Legend of Claudia: BDB's Awakening — top-down rescue slice. Eggplants. Protein. Poor judgment."
+      content="The Legend of Claudia: BDB's Awakening — third-person 3D rescue slice. Protein. Produce. Poor judgment."
     />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" />
     <link rel="apple-touch-icon" href="icon.svg" />
     <title>The Legend of Claudia: BDB's Awakening</title>
     <link rel="stylesheet" href="css/game.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.min.js"
+        }
+      }
+    </script>
   </head>
   <body>
     <div class="portrait-blocker" aria-hidden="true">
       <strong>ROTATE YOUR PHONE</strong>
-      <span>BDB rescues princesses in landscape only.</span>
+      <span>Big Dick Bob rescues princesses in landscape only.</span>
     </div>
 
     <div id="app">
       <div class="stage" id="stage">
-        <canvas id="game" width="960" height="540" aria-label="The Legend of Claudia game"></canvas>
+        <canvas id="game" width="960" height="540" aria-label="The Legend of Claudia 3D game"></canvas>
+        <div class="lock-reticle" id="lock-reticle" aria-hidden="true"></div>
+        <div class="prompt" id="prompt"></div>
 
         <div class="overlay">
           <div class="hud" id="hud">
             <div class="hud-panel">
-              <div><b>BDB</b> · <span id="chapter-label">CH I</span></div>
+              <div><b id="hud-hero">Big Dick Bob</b> · <span id="chapter-label">CH I</span></div>
               <div class="hearts" id="hearts" aria-label="hearts"></div>
               <div class="protein-track" id="protein" title="Protein toward Papacito"></div>
               <div class="papi-charges" id="charges" title="Papacito charges"></div>
               <div class="heat-track" id="heat" title="Street Produce heat"></div>
             </div>
             <div class="hud-panel center">
-              <b id="zone-name">BOULEVARD OF BAD DECISIONS</b>
+              <b id="zone-name">PROTEIN PALACE PLAZA</b>
               <div>SCORE <span id="score">000000</span></div>
             </div>
             <div class="hud-panel" style="opacity: 0; pointer-events: none; min-width: 80px"></div>
@@ -57,7 +66,7 @@
           <div class="talk-card">
             <div class="talk-who" id="talk-who"></div>
             <p class="talk-line" id="talk-line"></p>
-            <div class="talk-next">SPACE / ENTER / TAP</div>
+            <div class="talk-next">K / ENTER / TAP</div>
           </div>
         </div>
         <div class="toast" id="toast"></div>
@@ -66,11 +75,20 @@
           <h2 id="banner-title"></h2>
         </div>
 
+        <div class="song-screen" id="song" hidden>
+          <div class="song-card">
+            <div class="eyebrow">PAPACITO · SONGS</div>
+            <h2>SONG OF THE SCOOP</h2>
+            <div class="song-staff" id="song-staff"></div>
+            <p class="song-hint" id="song-hint">WASD / arrows play notes. Esc cancels.</p>
+          </div>
+        </div>
+
         <div class="papacito-flash" id="papacito-flash">
           <div class="card">
             <canvas id="elon-canvas" width="220" height="200"></canvas>
             <h3>PAPACITO</h3>
-            <p>ALL VISIBLE YETTIS: TOASTED.</p>
+            <p>PROTOCOL STUB — HOLD FOR SONGS.</p>
           </div>
         </div>
 
@@ -80,6 +98,7 @@
               <div class="sub">THE LEGEND OF</div>
               <h1>CLAUDIA</h1>
               <div class="sub">BDB'S AWAKENING</div>
+              <div class="hero-credit">starring <span id="hero-credit">Big Dick Bob</span></div>
               <div class="tag">PROTEIN. PRODUCE. POOR JUDGMENT.</div>
               <div class="btn-row">
                 <button class="primary" id="btn-start">START RESCUE</button>
@@ -95,22 +114,26 @@
                   <input id="suno-upload" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" hidden />
                 </label>
               </div>
-              <p class="foot-note">Headphones encouraged · Poor judgment mandatory · HD cinematic build</p>
-              <p class="disclaimer">Private parody. Not affiliated with Nintendo, The Legend of Zelda, or any public figures depicted.</p>
+              <p class="foot-note">Third-person 3D · Keyboard first · Headphones encouraged</p>
+              <p class="disclaimer">Private parody. Not affiliated with Nintendo or any public figures depicted.</p>
             </div>
 
             <div data-panel="how" hidden>
               <div class="tag">TACTICAL PRODUCE MANUAL</div>
               <h1 style="font-size: 28px">How to wake BDB</h1>
               <div class="how-grid">
-                <div><b>MOVE</b><span>WASD or arrows · 4-way d-pad</span></div>
-                <div><b>STREET PRODUCE</b><span>J, SPACE, or FIRE · single shot, slight arc · overheats if mashed</span></div>
-                <div><b>TALK</b><span>SPACE / ENTER / tap the box</span></div>
-                <div><b>PAPACITO</b><span>K or PAPI · the button stays sacred</span></div>
-                <div><b>PAUSE / AUDIO</b><span>P or Esc · ♫ music · FX sfx</span></div>
-                <div><b>GOAL</b><span>B-HUB → Palace talk with Eve → velvet D1 door unlocks on B-EAST</span></div>
+                <div><b>MOVE</b><span>WASD or arrows — camera-relative, full XZ</span></div>
+                <div><b>CAMERA</b><span>Mouse drag / double-click look · Q or E orbit · wheel zoom</span></div>
+                <div><b>JUMP</b><span>Space</span></div>
+                <div><b>Z-TARGET</b><span>Shift or F — lock onto the laughing pest</span></div>
+                <div><b>STREET PRODUCE</b><span>J or Ctrl — eggplant, slight arc, overheats if mashed. Never a sword.</span></div>
+                <div><b>TALK</b><span>K or E — Scoop Eve, velvet door, fountain</span></div>
+                <div><b>PAPACITO</b><span>P or Enter — ONE button. HOLD = song menu. TAP = protocol (stubbed without shakes)</span></div>
+                <div><b>SONG OF THE SCOOP</b><span>Hold Papacito, then ▼ ▲ ▼ ▲ ▶ with WASD / arrows</span></div>
+                <div><b>PAUSE</b><span>Esc · ♫ music · FX sfx</span></div>
+                <div><b>GOAL</b><span>Plaza → Eve → hold Papacito → play the song → field opens. No D1 interior.</span></div>
               </div>
-              <p class="foot-note">No sword. No D1 interior in this slice. Claudia is still in 3B.</p>
+              <p class="foot-note">No sword. No dungeon. Claudia is still in 3B.</p>
               <div class="btn-row" style="position:sticky;bottom:0;padding-top:8px;background:rgba(8,10,18,.95)">
                 <button class="primary" data-back>BACK</button>
               </div>
@@ -135,7 +158,6 @@
         <div class="modal" id="modal">
           <div class="modal-card" id="modal-body"></div>
         </div>
-
 
         <div class="cine" id="cine-open" hidden>
           <video id="vid-open" src="assets/video/opening.mp4" playsinline preload="auto"></video>
@@ -162,19 +184,21 @@
             <div class="spacer"></div>
           </div>
           <div class="actions">
+            <button class="ctrl" id="ctrl-lock" aria-label="Lock-on">LOCK</button>
+            <button class="ctrl" id="ctrl-talk" aria-label="Talk">TALK</button>
+            <button class="ctrl jump" id="ctrl-jump" aria-label="Jump">JUMP</button>
             <button class="ctrl papi" id="ctrl-papi" aria-label="Papacito">PAPI</button>
             <button class="ctrl fire" id="ctrl-fire" aria-label="Fire">FIRE</button>
           </div>
         </div>
-        <footer class="disclaimer stage-foot">Private parody. Not affiliated with Nintendo, The Legend of Zelda, or any public figures depicted.</footer>
+        <footer class="disclaimer stage-foot">Private parody. Not affiliated with Nintendo or any public figures depicted.</footer>
       </div>
     </div>
 
     <script type="module">
-      import { Game } from "./js/game.js";
+      import { Game } from "./js/oot/game.js";
       const stage = document.getElementById("stage");
       const game = new Game(stage);
-      // expose for debug
       window.BDB = game;
     </script>
   </body>

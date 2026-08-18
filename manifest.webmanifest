@@ -1,7 +1,7 @@
 {
   "name": "The Legend of Claudia: BDB's Awakening",
   "short_name": "BDB Awakening",
-  "description": "Top-down rescue slice. Eggplants. Protein. Poor judgment.",
+  "description": "Third-person 3D rescue slice. Eggplants. Protein. Poor judgment.",
   "start_url": "./index.html",
   "display": "fullscreen",
   "orientation": "landscape",
